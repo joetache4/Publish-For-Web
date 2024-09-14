@@ -21,6 +21,7 @@
 <legend>Notes</legend>
 <ul>
 <li>In the event of name conflicts, file indices will be appended like so: file-1.jpg, file-2.jpg, etc.</li>
+<li>Only JPG and PNG can contain EXIF metadata.</li>
 </ul>
 </fieldset>
 
@@ -71,7 +72,7 @@
 <fieldset>
   <legend>File Name</legend>
   <div>
-    <input type="radio" id="filename-whitespace" name="option-filename" value="filename-whitespace" checked />
+    <input type="radio" id="filename-whitespace" name="option-filename" value="filename-whitespace" checked required />
     <label for="filename-whitespace">Remove whitespace & convert to lowercase</label>
   </div>
   <div>
@@ -103,7 +104,7 @@
 <fieldset>
   <legend>Format</legend>
   <div>
-    <input type="radio" id="filetype-jpg" name="option-filetype" value="filetype-jpg" checked />
+    <input type="radio" id="filetype-jpg" name="option-filetype" value="filetype-jpg" checked required />
     <label for="filetype-jpg">JPG</label><span class="inline-sep">|</span><span style="margin-right: 10px;">Quality:</span><input id="jpg-quality-text" type="text" length="5" value="0.8" />
   </div>
   <div>
@@ -132,7 +133,7 @@
 	<input id="modtime-date-picker" type="datetime-local" disabled />
   </div>
   <div>
-    <input type="radio" id="modtime-carry" name="option-modtime" value="modtime-carry" checked />
+    <input type="radio" id="modtime-carry" name="option-modtime" value="modtime-carry" checked required />
     <label for="modtime-carry">No change</label>
   </div>
 </fieldset>
@@ -257,7 +258,6 @@ function getRadioValue(groupName) {
 	const radioButtons = document.getElementsByName(groupName);
 	for (let i = 0; i < radioButtons.length; i++) {
 		if (radioButtons[i].checked) {
-			//console.log("radio " + groupName + " = " + radioButtons[i].value);
 			return radioButtons[i].value;
 		}
 	}
@@ -357,8 +357,8 @@ function getNewFilename(file) {
 
 function getNewDimensions(img) {
 	let newWidth = img.width, newHeight = img.height;
-	let maxWidth = parseInt(document.getElementById("image-maxwidth"));
-	let maxHeight = parseInt(document.getElementById("image-maxheight"));
+	let maxWidth = parseInt(document.getElementById("image-maxwidth").value);
+	let maxHeight = parseInt(document.getElementById("image-maxheight").value);
 
 	if (isNaN(maxWidth)) {
 		maxWidth = img.width;
@@ -643,7 +643,7 @@ function resizeImage(file) {
 			const img = new Image();
 			img.onload = () => {
 				const canvas = document.createElement("canvas");
-				[newWidth, newHeight] = getNewDimensions(img);
+				const [newWidth, newHeight] = getNewDimensions(img);
 
 				console.log("    resizing image. width: " + newWidth + " height: " + newHeight);
 				canvas.width = newWidth;
@@ -853,8 +853,6 @@ document.getElementById("filetype-jpg").oninput = filetypeChanged;
 document.getElementById("filetype-png").oninput = filetypeChanged;
 document.getElementById("filetype-carry").oninput = filetypeChanged;
 
-// TODO check if above radio buttons start off checked
-
 window.addEventListener("DOMContentLoaded", () => {
 	if (window.navigator.userAgent.includes("Win")) {
 		for (const e of document.querySelectorAll(".hide-windows")) {
@@ -865,6 +863,13 @@ window.addEventListener("DOMContentLoaded", () => {
 			e.style.display = "none";
 		}
 	}
+
+	if (getRadioValue("option-filename") == "filename-template")
+		document.getElementById("filename-template-text").disabled = false;
+	if (getRadioValue("option-filetype") == "filetype-jpg")
+		document.getElementById("jpg-quality-text").disabled = false;
+	if (getRadioValue("option-modtime") == "modtime-set")
+		document.getElementById("modtime-date-picker").disabled = false;
 });
 
 </script>
