@@ -1,0 +1,236 @@
+html, body {
+	height: 100%;
+	margin: 0px;
+}
+
+body {
+	font-family: 'Roboto', serif;
+	font-size: 14px;
+	color: #B3B3B3;
+	background-color: #333;
+}
+
+h1 {
+	font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
+	color: #5AF;
+	font-weight: bold;
+	letter-spacing: 0.1em;
+	font-size: 36px;
+}
+
+.button {
+	font-family: 'Roboto', serif;
+	font-size: 14px;
+	letter-spacing: 0.15em;
+	padding: 5px 14px 5px 14px;
+	border-radius: 5px;
+	cursor: pointer;
+	color: white;
+	display: inline-block;
+	background-color: #5AF;
+	font-weight: bold;
+	text-decoration: none;
+}
+
+.button:hover {
+	background-color: #6BF;
+}
+
+.hollow-button {
+	background-color: transparent;
+	border: 2px solid #5AF;
+	padding: 3px 12px 3px 12px;
+}
+
+.hollow-button:hover {
+	background-color: #5AF;
+}
+
+.narrow-button {
+	padding: 8px 12px;
+	font-size: 12px;
+	letter-spacing: 0.1em;
+}
+
+.tall-button {
+	line-height: 1.5;
+}
+
+.hidden {
+	display: none;
+}
+
+.noselect {
+  -webkit-touch-callout: none; /* iOS Safari */
+	-webkit-user-select: none; /* Safari */
+	 -khtml-user-select: none; /* Konqueror HTML */
+	   -moz-user-select: none; /* Old versions of Firefox */
+	    -ms-user-select: none; /* Internet Explorer/Edge */
+	        user-select: none; /* Non-prefixed version, currently
+	                              supported by Chrome, Edge, Opera and Firefox */
+}
+
+
+
+/* First "page" */
+
+.options-page {
+	font-size: 12px;
+	display: flex;
+	flex-direction: column;
+	flex-wrap: wrap;
+	/* justify-content: center; */
+	align-items: center;
+	height: 100%;
+	width: 400px;
+	margin: 0 auto;
+}
+
+.options-page > h1 {
+	margin: 20px 0;
+}
+
+.option {
+	margin-bottom: 20px;
+	width: 100%;
+}
+
+.long-input {
+	margin-left: 50px;
+	width: 265px;
+}
+
+input[type="file"] {
+	display: none;
+}
+
+input[type="radio"] {
+	margin: 0.4rem;
+	accent-color: #5AF;
+}
+
+input[type="checkbox"] {
+	margin-right: 10px;
+	cursor: pointer;
+	accent-color: #5AF;
+}
+
+/* https://blog.logrocket.com/creating-beautiful-tooltips-with-only-css/ */
+
+.tooltip {
+	position: relative;
+	border-bottom: 1px dashed #B3B3B3;
+}
+
+.tooltip:before {
+	content: attr(data-tip);
+	position: absolute;
+
+	/* vertically center */
+	top: 50%;
+	transform: translateY(-50%);
+
+	/* move to left */
+	right: 100%;
+	margin-right: 18px;
+
+	/* basic styles */
+	width: 300px;
+	padding: 10px;
+	border-radius: 10px;
+	background: #181818;
+	color: #FFF;
+	text-align: center;
+
+	visibility: hidden;
+	opacity: 0;
+	transition: 0.3s ease-in-out;
+}
+
+.tooltip:hover:before {
+	visibility: visible;
+	opacity: 1;
+	transition: opacity 0.3s ease-in-out;
+}
+
+.tooltip:after {
+	content: "";
+	position: absolute;
+
+	/* position tooltip correctly */
+	right: 100%;
+	margin-right: -2px;
+
+	/* vertically center */
+	top: 50%;
+	transform: translateY(-50%);
+
+	/* the arrow */
+	border: 10px solid #181818;
+	border-color: transparent transparent transparent #181818;
+
+	visibility: hidden;
+	opacity: 0;
+	transition: 0.3s ease-in-out;
+}
+.tooltip:hover:before, .tooltip:hover:after {
+	visibility: visible;
+	opacity: 1;
+	transition: opacity 0.3s ease-in-out;
+}
+
+/*
+.tooltip {
+	font-weight: bold;
+	margin-left: 10px;
+	border-radius: 1.2ex;
+	padding: 1px;
+	border: 1px solid grey;
+	opacity: 80%;
+	cursor: pointer;
+}
+*/
+
+.footer {
+	border-top: 1px solid #5AF;
+	margin-top: 80px;
+	margin-bottom: 20px;
+	color: grey;
+	font-size: 12px;
+	padding-top: 5px;
+}
+
+.social-links {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	margin-top: 20px;
+}
+
+.img-rescale {
+	width: 40px;
+	height: 40px;
+	opacity: 0.4;
+}
+
+.img-rescale img {
+	width: 100%;
+	height: auto;
+}
+
+#message {
+	width: fit-content;
+	max-width: 500px;
+	margin: 0 auto;
+	padding: 5px;
+	text-align: center;
+	background-color: #FFC;
+	color: #565656;
+	border-radius: 3px;
+
+	position: fixed;
+	top: 140px;
+	left: 50%;
+	transform: translate(-50%, 0%);
+	z-index: 1000;
+}

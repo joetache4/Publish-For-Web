@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<title>Publish for Web</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="icon" type="image/png" href="images/favicon.png">
+	<link rel="stylesheet" type="text/css" href="./css/fonts.css">
+	<link rel="stylesheet" type="text/css" href="./css/style.css">
+	<script src="./scripts/jszip.min.js"></script>
+</head>
+
+<body id="dropzone">
+<div class="options-page">
+
+<h1>Publish for Web</h1>
+
+<p>Output will contain no metadata.</p>
+
+<!--
+In the event of name conflicts, file indices will be appended like so: -1, -2, etc.
+
+Template String
+%f old file name, no extension, no whitespace, lowercase
+%F old file name, no extension, no whitespace, original case
+%G old file name, no extension
+%x old file extension
+
+%w width
+%h height
+
+%d{FORMAT} modtime in the given format
+%k size in kilobytes (integer only)
+
+%r{N} N random digits
+%R{N} N random alphanumeric chars
+
+%% percent sign
+-->
+
+<div class="option">
+<fieldset>
+  <legend>File Name</legend>
+  <div>
+    <input type="radio" id="filename-whitespace" name="option-filename" value="filename-whitespace" checked />
+    <label for="filename-whitespace">Remove whitespace & convert to lowercase</label>
+  </div>
+  <div>
+    <input type="radio" id="filename-template" name="option-filename" value="filename-template" />
+    <label for="filename-template"><span class="tooltip" data-tip="%f = old file name, no extension, no whitespace, lowercase | %F = old file name, no extension, no whitespace, original case | %G = old file name, no extension | %x = old file extension | %w = width | %h = height | %d{FORMAT} = modtime in the given format | %k = size in kilobytes (integer only) | %r{N} = N random digits | %R{N} = N random alphanumeric chars | %% = percent sign">Template</span></label> <!-- TODO use javascript to make a mutlti-line tooltip -->
+	<br>
+	<input id="filename-template-text" type="text" value="%f" class="long-input" />
+  </div>
+  <div>
+    <input type="radio" id="filename-carry" name="option-filename" value="filename-carry" />
+    <label for="filename-carry">No change</label>
+  </div>
+</fieldset>
+</div>
+
+<div class="option">
+<fieldset>
+  <legend>Max Image Dimensions (set blank for no limit)</legend>
+  <div>
+    <span style="display: inline-block; width: 50px;">Width:</span>
+    <input type="text" id="image-maxwidth" name="option-dimension" maxlength="5" size="6" value="1280" />
+  </div>
+  <div>
+    <span style="display: inline-block; width: 50px;">Height:</span>
+    <input type="text" id="image-maxheight" name="option-dimension" maxlength="5" size="6" value="1024" />
+  </div>
+</fieldset>
+</div>
+
+
+<div class="option">
+<fieldset>
+  <legend>File Format</legend>
+  <div>
+    <input type="radio" id="filetype-jpg" name="option-filetype" value="filetype-jpg" checked />
+    <label for="filetype-jpg">JPG</label>&nbsp;&nbsp;&nbsp; | &nbsp;&nbsp; Quality: <input id="image-quality" type="text" size="5" value="0.8" />
+  </div>
+  <div>
+    <input type="radio" id="filetype-png" name="option-filetype" value="filetype-png" />
+    <label for="filetype-png">PNG</label>
+  </div>
+  <div>
+    <input type="radio" id="filetype-carry" name="option-filetype" value="filetype-carry" />
+    <label for="filetype-carry">No change</label>
+  </div>
+</fieldset>
+</div>
+
+<div class="option">
+<fieldset>
+  <legend>File Last Modified Time</legend>
+  <div>
+    <input type="radio" id="modtime-interpret" name="option-modtime" value="modtime-interpret" />
+    <label for="modtime-interpret"><span class="tooltip" data-tip="An 8-digit chunk followed by a 6-digit chunk will be interpretted as day and time.">Interpret from filename</span></label>
+  </div>
+  <div>
+    <input type="radio" id="modtime-now" name="option-modtime" value="modtime-now" />
+    <label for="modtime-now">Now</label>
+  </div>
+  <div>
+    <input type="radio" id="modtime-set" name="option-modtime" value="modtime-set" />
+    <label for="modtime-set">Set</label>
+	<br>
+	<input id="modtime-date-picker" type="datetime-local" class="long-input" />
+  </div>
+  <div>
+    <input type="radio" id="modtime-carry" name="option-modtime" value="modtime-carry" checked />
+    <label for="modtime-carry">No change</label>
+  </div>
+</fieldset>
+</div>
+
+<div>
+<input type="file" id="input-files" multiple accept="image/*">
+<div class="button" onclick="document.getElementById('input-files').click()">Select Files</div>
+<input type="file" id="input-dirs" webkitdirectory multiple accept="image/*">
+<div class="button" onclick="document.getElementById('input-dirs').click()">Select Folders</div>
+</div>
+
+</div>
+
+
+
+<script>
+
+const MIME = {
+	".jpg" : "image/jpeg",
+	".jpeg": "image/jpeg",
+	".png" : "image/png",
+	".webp": "image/webp", // TODO not supported by canvas.toBlob in Safari
+	".zip" : "application/zip",
+};
+
+function getRadioValue(groupName) {
+	const radioButtons = document.getElementsByName(groupName);
+	for (let i = 0; i < radioButtons.length; i++) {
+		if (radioButtons[i].checked) {
+			//console.log("radio " + groupName + " = " + radioButtons[i].value);
+			return radioButtons[i].value;
+		}
+	}
+	return null;
+}
+
+function splitFilename(name) {
+	name = name.endsWith("/") ? name.substring(0, name.length-1) : name;
+	const lastDotIndex = name.lastIndexOf(".");
+	const lastSlashIndex = name.lastIndexOf("/");
+
+	const dir      = lastSlashIndex !== -1 ? name.substring(0, lastSlashIndex) : "";
+	const basename = lastDotIndex   !== -1 ? name.substring(lastSlashIndex+1, lastDotIndex) : name.substring(lastSlashIndex+1);
+	const ext      = lastDotIndex   !== -1 ? name.substring(lastDotIndex     ) : "";
+	return [dir, basename, ext];
+}
+
+function safeParseInt(str, def) {
+  const parsedValue = parseInt(str, 10);
+  return isNaN(parsedValue) ? def : parsedValue;
+}
+
+/*
+function safeParseFloat(str, def) {
+  const parsedValue = parseFloat(str, 10);
+  return isNaN(parsedValue) ? def : parsedValue;
+}
+*/
+
+
+usedFilenames = new Set();
+function getNewFilename(file) {
+	const val = getRadioValue("option-filename");
+	let [dir, basename, ext] = splitFilename(file.webkitRelativePath || file.name);
+	
+	if (val === "filename-whitespace") {
+		basename = basename.trim().toLowerCase().replaceAll(/ +/g, "-");
+	} else if (val === "filename-template") {
+		let template = document.getElementById("filename-template-text").value;
+		let out = "";
+		let command = "", arg = "";
+
+		for (let i = 0; i < template.length; i++) {
+			let c = template.charAt(i);
+			if (command) {
+				if (c === "}") {
+					if (command === "r") {
+						arg = safeParseInt(arg, 1);
+						out += Math.floor(Math.random() * 10**arg);
+					} else if (command === "R") {
+						arg = safeParseInt(arg, 1);
+						const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+						for (let j = 0; j < arg; j++) {
+							const randomIndex = Math.floor(Math.random() * characters.length);
+							out += characters.charAt(randomIndex);
+						}
+					} else if (command === "d") {
+						out += file.lastModified; ///////////////////////////////////////////////// TODO format
+					}
+					command = "";
+					arg = "";
+				} else {
+					arg += c;
+				}
+			} else if (c == "%") {
+				i++;
+				if (i === template.length) break;
+				command = template.charAt(i);
+				if (command === "f") {
+					out += basename.trim().toLowerCase().replaceAll(/ +/g, "-");
+					command = "";
+				} else if (command === "F") {
+					out += basename.trim().replaceAll(/ +/g, "-");
+					command = "";
+				} else if (command === "G") {
+					out += basename;
+					command = "";
+				} else if (command === "x") {
+					out += ext.substring(1); // old extension
+					command = "";
+				} else if (command === "w") {
+					out += 1; ///////////////////////////////////////////////// TODO
+					command = "";
+				} else if (command === "h") {
+					out += 1; ///////////////////////////////////////////////// TODO
+					command = "";
+				} else if (command === "d") {
+					i++;
+				} else if (command === "k") {
+					out += Math.max(1, Math.floor(file.size/1024));
+					command = "";
+				} else if (command === "r") {
+					i++;
+				} else if (command === "R") {
+					i++;
+				} else if (command === "%") {
+					out += "%";
+					command = "";
+				}
+			} else {
+				out += c;
+			}
+		}
+
+		basename = out;
+	}
+	let format = getNewFormat(file);
+	if (format == "image/jpeg") {
+		ext = ".jpg";
+	} else if (format == "image/png") {
+		ext = ".png";
+	}
+	let name = dir + basename + ext;
+	let i = 1;
+	while (usedFilenames.has(name)) {
+		name = dir + basename + "-" + i + ext;
+		i++;
+	}
+	usedFilenames.add(name);
+	return name;
+}
+
+function getNewDimensions(img) {
+	let newWidth = img.width, newHeight = img.height;
+	let maxWidth = parseInt(document.getElementById("image-maxwidth"));
+	let maxHeight = parseInt(document.getElementById("image-maxheight"));
+
+	if (isNaN(maxWidth)) {
+		maxWidth = img.width;
+	}
+	if (isNaN(maxHeight)) {
+		maxWidth = img.height;
+	}
+
+	if (newWidth > maxWidth) {
+		newHeight = newHeight * maxWidth / newWidth;
+		newWidth = maxWidth;
+	}
+	if (newHeight > maxHeight) {
+		newWidth = newWidth * maxHeight / newHeight;
+		newHeight = maxHeight;
+	}
+	newWidth = Math.floor(newWidth + 0.0001);
+	newHeight = Math.floor(newHeight + 0.0001);
+	return [newWidth, newHeight];
+}
+
+function getNewFormat(file) {
+	const val = getRadioValue("option-filetype");
+	if (val === "filetype-jpg") {
+		return "image/jpeg";
+	} else if (val === "filetype-png") {
+		return "image/png";
+	} else {
+		const [dir, basename, ext] = splitFilename(file.name);
+		let mime = MIME[ext];
+		if (mime === undefined) {
+			mime = "image/jpeg";
+		}
+		return mime;
+	}
+}
+
+function getNewQuality() {
+	let quality = parseFloat(document.getElementById("image-quality"));
+	if (isNaN(quality)) {
+		quality = 0.8;
+	}
+	return quality;
+}
+
+function getNewModtime(file) {
+	const val = getRadioValue("option-modtime");
+	let date;
+	if (val === "modtime-interpret") {
+		const [dir, basename, ext] = splitFilename(file.name);
+		const found = basename.replaceAll(/[^\d]/g, " ").match(/ *(\d{8}) *(\d{6}) */);
+		if (found !== null) {
+			const dayNumber = found[1], timeNumber = found[2];
+			const year   = parseInt(dayNumber.substring(0, 4));
+			const month  = parseInt(dayNumber.substring(4, 6)) - 1; // Months are 0-indexed
+			const day    = parseInt(dayNumber.substring(6, 8));
+			const hour   = parseInt(timeNumber.substring(0, 2));
+			const minute = parseInt(timeNumber.substring(2, 4));
+			const second = parseInt(timeNumber.substring(4, 6));
+			date = new Date(year, month, day, hour, minute, second);
+		}
+	} else if (val === "modtime-now") {
+		date = new Date();
+	} else if (val === "modtime-set") {
+		dateval = document.getElementById("modtime-date-picker").value;
+		if (dateval !== "")
+			date = new Date(dateval);
+	} else if (val === "modtime-carry") {
+		date = new Date(file.lastModified);
+	}
+	if (date === null) {
+		date = new Date(file.lastModified)
+	}
+	return date;
+}
+
+
+
+
+function resizeImage(file) {
+	return new Promise((resolve, reject) => {
+		const reader = new FileReader();
+		reader.onload = (event) => {
+			const img = new Image();
+			img.onload = () => {
+				const canvas = document.createElement("canvas");
+				[newWidth, newHeight] = getNewDimensions(img);
+
+				console.log("    resizing image. width: " + newWidth + " height: " + newHeight);
+				canvas.width = newWidth;
+				canvas.height = newHeight;
+				const ctx = canvas.getContext("2d");
+				ctx.drawImage(img, 0, 0, newWidth, newHeight);
+
+				newFormat  = getNewFormat(file);
+				newQuality = getNewQuality(file);
+				console.log("    converting image: " + newFormat + " " + newQuality);
+				canvas.toBlob(blob => {
+					resolve(blob);
+				}, newFormat, newQuality);
+			};
+			img.onerror = (error) => {
+				reject(error);
+			};
+
+			console.log("    interpretting image");
+			img.src = event.target.result;
+		};
+		reader.onerror = (error) => {
+			reject(error);
+		};
+
+		console.log("  reading file");
+		reader.readAsDataURL(file);
+	});
+}
+
+async function createZip(files) {
+	if (!files.length) return;
+
+	const zip = new JSZip();
+
+	console.log("input: " + files.length);
+	console.log("compiling zip");
+
+	Promise.all(
+		Array.from(files).map(f => {
+
+			console.log("  beginning file: " + f.name + " (" + f.size + ")");
+			return resizeImage(f)
+			.then(blob => {
+
+				newName    = getNewFilename(f);
+				newModtime = getNewModtime(f);
+				console.log("  adding file: " + newName);
+				zip.file(newName, blob, {date: newModtime});
+			});
+		})
+	)
+	.then(() => {
+
+		console.log("generating zip");
+		zip.generateAsync({ type: "blob", compression: "STORE" })
+		.then(content => {
+			saveAs(content, "images.zip");
+		});
+	})
+	.catch(err => {
+		alert("There was an error reading your files. Make sure they are all valid images.");
+		console.log(err);
+	});
+}
+
+function saveAs(content, filename) {
+	const [dir, basename, ext] = splitFilename(filename);
+	const mime = MIME[ext];
+	console.log("downloading " + mime);
+	const file = new File([content], filename, { type: mime });
+	const url = URL.createObjectURL(file);
+	const link = document.createElement("a");
+	link.href = url;
+	link.download = filename;
+	link.click(); // TODO % signs are replaced with _
+	URL.revokeObjectURL(url);
+}
+
+const supportsRelativePath = 'webkitRelativePath' in File.prototype;
+const supportsDirs = typeof DataTransferItem != 'undefined' && 'webkitGetAsEntry' in DataTransferItem.prototype;
+
+const readRecurse = (dir, onComplete, onError) => {
+	let files = [];
+	let total = 0;
+	let errored = false;
+	let reachedEnd = false;
+	const onErr = (err) => {
+		if (!errored) {
+			errored = true;
+			onError(err);
+		}
+	};
+	const onDone = (f) => {
+		files = files.concat(f);
+		if (!--total && reachedEnd) onComplete(files);
+	};
+	const reader = dir.createReader();
+	const onRead = (entries) => {
+		if (!entries.length && !errored) {
+			if (!total) onComplete(files);
+			else reachedEnd = true;
+		} else reader.readEntries(onRead, onError);
+		for (const entry of entries) {
+			++total;
+			if (entry.isFile) {
+				entry.file(f => onDone([new File([f], entry.fullPath.slice(1), f)]), onErr);
+			}
+			else readRecurse(entry, onDone, onErr);
+		}
+	};
+	reader.readEntries(onRead, onError);
+}
+
+const dropzone = document.getElementById('dropzone');
+
+dropzone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+});
+
+dropzone.addEventListener('drop', (ev) => {
+	ev.preventDefault();
+	const tf = ev.dataTransfer;
+	if (!tf.files.length) {
+		return;
+	} else {
+		if (supportsDirs) {
+			let outFiles = [];
+			let lft = tf.items.length;
+			let errored = false;
+			const onErr = (err) => {
+				if (!errored) {
+					errored = true;
+					console.log(err);
+				}
+			}
+			const onDone = (f) => {
+				outFiles = outFiles.concat(f);
+				if (!--lft && !errored) {
+					onFiles(outFiles);
+				}
+			};
+			for (let i = 0; i < tf.items.length; ++i) {
+				const entry = tf.items[i].webkitGetAsEntry();
+				if (entry.isFile) {
+					entry.file(f => onDone([f]), onErr);
+				}
+				else {
+					readRecurse(entry, onDone, onErr);
+				}
+			}
+		} else {
+			alert("This browser does not support folder drag-and-drop!");
+		}
+	}
+});
+
+handleInput = (ev) => {
+	const t = ev.target, files = t.files;
+	if (supportsRelativePath) {
+		const outFiles = Array(files.length);
+		for (let i = 0; i < files.length; ++i) {
+			const file = files[i];
+			outFiles[i] = new File([file], file.webkitRelativePath || file.name, file);
+		}
+		onFiles(outFiles);
+	} else {
+		onFiles(Array.prototype.slice.call(files));
+	}
+	t.value = '';
+}
+document.getElementById("input-files").oninput = handleInput;
+document.getElementById("input-dirs").oninput = handleInput;
+
+function onFiles(f) {
+	if (f.length == 1) {
+		f = f[0];
+		console.log("  beginning file: " + f.name);
+		return resizeImage(f)
+		.then(content => {
+			let newName = getNewFilename(f);
+			console.log("renaming to " + newName);
+			saveAs(content, newName); ////////////// TODO set modtime
+		})
+		.catch(err => {
+			console.log(err);
+		});
+	} else {
+		createZip(f);
+	}
+}
+
+
+</script>
+</body>
+</html>
