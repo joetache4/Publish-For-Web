@@ -133,30 +133,30 @@
 </fieldset>
 
 <fieldset>
-<legend><span class="tooltip" data-tip="Only JPG and PNG images can contain EXIF metadata.">EXIF Metadata</span></legend>
+<legend><span class="tooltip" data-tip="Only JPGs can contain EXIF metadata at the moment.">EXIF Metadata</span></legend>
   <div>
-    <label for="option-exif-artist" style="display: inline-block; width: 90px;">Artist:</label>
-    <input type="text" id="exif-artist" name="option-exif-artist" />
+    <label for="option-meta-artist" style="display: inline-block; width: 90px;">Artist:</label>
+    <input type="text" id="meta-artist" name="option-meta-artist" maxlength="280" />
 	<span class="note">(blank ignored)</span>
   </div>
   <div>
-    <label for="option-exif-title" style="display: inline-block; width: 90px;">Title:</label>
-    <input type="text" id="exif-title" name="option-exif-title" />
+    <label for="option-meta-title" style="display: inline-block; width: 90px;">Title:</label>
+    <input type="text" id="meta-title" name="option-meta-title" maxlength="280" />
 	<span class="note">(blank ignored)</span>
   </div>
   <div>
-    <label for="option-exif-copyright" style="display: inline-block; width: 90px;">Copyright:</label>
-    <input type="text" id="exif-copyright" name="option-exif-copyright" />
+    <label for="option-meta-copyright" style="display: inline-block; width: 90px;">Copyright:</label>
+    <input type="text" id="meta-copyright" name="option-meta-copyright" maxlength="280" />
 	<span class="note">(blank ignored)</span>
   </div>
   <div>
-    <label for="option-exif-date" style="display: inline-block; width: 90px;">DateTimeOriginal:</label>
-	<select name="option-exif-date" id="exif-date">
-	  <option value="exif-date-none">None</option>
-	  <option value="exif-date-carry">Read JPG EXIF</option>
-	  <option value="exif-date-modtime-old">From old modtime</option>
-	  <option value="exif-date-modtime-new">From new modtime</option>
-	  <option value="exif-date-interpret">Interpret from filename</option>
+    <label for="option-meta-date" style="display: inline-block; width: 90px;">DateTimeOriginal:</label>
+	<select name="option-meta-date" id="meta-date">
+	  <option value="meta-date-none">None</option>
+	  <option value="meta-date-exif">Read JPG EXIF</option>
+	  <option value="meta-date-modtime-old">From old modtime</option>
+	  <option value="meta-date-modtime-new">From new modtime</option>
+	  <option value="meta-date-interpret">Interpret from filename</option>
 	</select>
   </div>
   <br>
@@ -289,7 +289,9 @@ function interpretDateFromFilename(file) {
 		const minute = parseInt(timeNumber.substring(2, 4));
 		const second = parseInt(timeNumber.substring(4, 6));
 		date = new Date(year, month, day, hour, minute, second);
+		return date;
 	}
+	return null;
 }
 
 // TODO The two problems below are good reasons to only download zip files...
@@ -322,14 +324,31 @@ function getInputOrDefault(id) {
 	return val;
 }
 
-function getLocalDateISOString(localDate=Date.now()) {
-	if (typeof localDate === "number") {
+function getDatePickerDateString(localDate=Date.now()) {
+	if (typeof localDate === "number")
 		localDate = new Date(localDate);
-	}
 	const offsetMs = localDate.getTimezoneOffset() * 60 * 1000;
 	localDate.setTime(localDate.getTime() - offsetMs);
-	localDate =  localDate.toISOString().slice(0, 19);
+	localDate = localDate.toISOString().slice(0, 19);
 	return localDate;
+}
+
+function getXMPDateString(localDate=Date.now(), timeZoneOffset=null) {
+	if (typeof localDate === "number")
+		localDate = new Date(localDate);
+	if (timeZoneOffset === null)
+		timeZoneOffset = -localDate.getTimezoneOffset(); //minutes
+	let date = getDatePickerDateString(localDate);
+	const H = ("" + Math.floor(Math.abs(timeZoneOffset)/60)).padStart(2, "0");
+	const M = ("" + Math.abs(timeZoneOffset)%60).padStart(2, "0");
+	date += (timeZoneOffset < 0 ? "-" : "+") + H + ":" + M;
+	return date;
+}
+
+function getEXIFDateString(localDate=Date.now()) {
+	let date = getDatePickerDateString(localDate);
+	date = date.slice(0,19).replaceAll("-", ":").replace("T", " ");
+	return date;
 }
 
 
@@ -342,7 +361,7 @@ function getLocalDateISOString(localDate=Date.now()) {
 
 
 
-function getNewFilename(file, width, height) {
+function* getNewFilename(file, width, height) {
 	const val = getRadioValue("option-filename");
 	let [dir, basename, ext] = splitFilename(file.webkitRelativePath || file.name);
 
@@ -427,7 +446,13 @@ function getNewFilename(file, width, height) {
 	} else if (format == "image/png") {
 		ext = ".png";
 	}
-	return [dir, basename, ext];
+
+	for (let i = 0; ; i++) {
+		if (i)
+			yield [dir, basename, "-", i, ext].join("");
+		else
+			yield [dir, basename, ext].join("");
+	}
 }
 
 function getNewDimensions(img) {
@@ -497,32 +522,97 @@ function getNewModtime(file) {
 	return date;
 }
 
-function getNewEXIFData(file) {
-	const artist = document.getElementById("exif-artist").value;
-	const title = document.getElementById("exif-title").value;
-	const copyright = document.getElementById("exif-copyright").value;
-	let dateTimeOriginal = document.getElementById("exif-date").value;
-	if (dateTimeOriginal == "exif-date-carry") {
-		// TODO read exif date
-		dateTimeOriginal = "";
-	} else if (dateTimeOriginal == "exif-date-modtime-old") {
-		dateTimeOriginal = getLocalDateISOString(file.lastModified);
-		dateTimeOriginal = dateTimeOriginal.replaceAll("-", ":").replace("T", " ");
-	} else if (dateTimeOriginal == "exif-date-modtime-new") {
-		dateTimeOriginal = getLocalDateISOString(getNewModtime(file));
-		dateTimeOriginal = dateTimeOriginal.replaceAll("-", ":").replace("T", " ");
-	} else if (dateTimeOriginal == "exif-date-interpret") {
-		dateTimeOriginal = getLocalDateISOString(interpretDateFromFilename(file));
-		dateTimeOriginal = dateTimeOriginal.replaceAll("-", ":").replace("T", " ");
-	} else {
-		dateTimeOriginal = "";
+async function getNewMetadata(file) {
+	const artist    = document.getElementById("meta-artist").value;
+	const title     = document.getElementById("meta-title").value;
+	const copyright = document.getElementById("meta-copyright").value;
+	const dateTimeOriginalSelection = document.getElementById("meta-date").value;
+	let dateTimeOriginal   = "";
+	let timeZoneOffset     = "";
+	let subSecTimeOriginal = "";
+	if (dateTimeOriginalSelection == "meta-date-exif") {
+		const data  = await file.arrayBuffer();
+		const bytes = new Uint8Array(data);
+		// find EXIF header
+		let exifStart = null;
+		for (let i = 6; i < 30; i++) {
+			if (bytes[i] == 0x45 && bytes[i+1] == 0x78 && bytes[i+2] == 0x69 && bytes[i+3] == 0x66 && bytes[i+4] == 0x00 && bytes[i+5] == 0x00) { // EXIF header
+				exifStart = i+6; // start of the TIFF header which all offsets are relative to
+				break;
+			}
+		}
+		if (exifStart) {
+			// search for link to SubIFD
+			const IFD0Offset = bytes[exifStart+4]*256**3 + bytes[exifStart+5]*256**2 + bytes[exifStart+6]*256**1 + bytes[exifStart+7]*256**0;
+			const numberOfIFD0Entries = bytes[exifStart+IFD0Offset]*256 + bytes[exifStart+IFD0Offset+1] - 1; // subtract link to IFD1
+			for (let i = 0; i < numberOfIFD0Entries; i++) {
+				let IFD0EntryStart = exifStart + IFD0Offset + 2 + 12*i;
+				if (bytes[IFD0EntryStart] == 0x87 && bytes[IFD0EntryStart+1] == 0x69) {
+					const subIFDOffset = bytes[IFD0EntryStart+8]*256**3 + bytes[IFD0EntryStart+9]*256**2 + bytes[IFD0EntryStart+10]*256**1 + bytes[IFD0EntryStart+11]*256**0;
+					const numberOfSubIFDEntries = bytes[exifStart + subIFDOffset]*256 + bytes[exifStart + subIFDOffset + 1] - 1;
+					// search for DateTimeOriginal, TimeZoneOffset, and SubSecTimeOriginal entries inside SubIFD
+					// store each value as a string
+					for (let j = 0; j < numberOfSubIFDEntries; j++) {
+						let subIFDEntryStart = exifStart + subIFDOffset + 2 + 12*j;
+						if (dateTimeOriginal === "" && bytes[subIFDEntryStart] == 0x90 && bytes[subIFDEntryStart+1] == 0x03) {
+							const dataOffset = bytes[subIFDEntryStart+8]*256**3 + bytes[subIFDEntryStart+9]*256**2 + bytes[subIFDEntryStart+10]*256**1 + bytes[subIFDEntryStart+11]*256**0;
+							for (let k = exifStart + dataOffset; k < exifStart + dataOffset + 19; k++)
+								dateTimeOriginal += String.fromCharCode(bytes[k]);
+						} else if (timeZoneOffset === "" && bytes[subIFDEntryStart] == 0x88 && bytes[subIFDEntryStart+1] == 0x2A) {
+							timeZoneOffset = (bytes[subIFDEntryStart+8] & 0x8000 ? -1 : 1) * ((bytes[subIFDEntryStart+8] & 0x7FFF)*256 + bytes[subIFDEntryStart+9]);
+							timeZoneOffset = "" + timeZoneOffset;
+						} else if (subSecTimeOriginal === "" && bytes[subIFDEntryStart] == 0x92 && bytes[subIFDEntryStart+1] == 0x91) {
+							const dataSize = bytes[IFD0EntryStart+4]*256**3 + bytes[IFD0EntryStart+5]*256**2 + bytes[IFD0EntryStart+6]*256**1 + bytes[IFD0EntryStart+7]*256**0;
+							if (dataSize <= 4) {
+								for (let k = subIFDEntryStart + 8; k < subIFDEntryStart + 8 + dataSize; k++) subSecTimeOriginal += String.fromCharCode(bytes[k]);
+							} else {
+								const dataOffset = bytes[subIFDEntryStart+8]*256**3 + bytes[subIFDEntryStart+9]*256**2 + bytes[subIFDEntryStart+10]*256**1 + bytes[subIFDEntryStart+11]*256**0;
+								for (let k = exifStart + dataOffset; k < exifStart + dataOffset + dataSize; k++) subSecTimeOriginal += String.fromCharCode(bytes[k]);
+							}
+						}
+						if (dateTimeOriginal && timeZoneOffset && subSecTimeOriginal) break;
+					}
+
+					break;
+				}
+			}
+			// parse the date
+			if (dateTimeOriginal) {
+				const match = dateTimeOriginal.match(/(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})/);
+				if (match) {
+					dateTimeOriginal = new Date(
+						match[1],
+						parseInt(match[2])-1,
+						match[3],
+						match[4],
+						match[5],
+						match[6],
+						subSecTimeOriginal
+					);
+				}
+			}
+		}
+	} else if (dateTimeOriginalSelection == "meta-date-modtime-old") {
+		dateTimeOriginal   = new Date(file.lastModified);
+		timeZoneOffset     = "" + dateTimeOriginal.getTimezoneOffset()*60; // zero is a valid value
+		subSecTimeOriginal = "" + dateTimeOriginal.getMilliseconds();
+	} else if (dateTimeOriginalSelection == "meta-date-modtime-new") {
+		dateTimeOriginal   = new Date(getNewModtime(file));
+		timeZoneOffset     = "" + dateTimeOriginal.getTimezoneOffset()*60;
+		subSecTimeOriginal = "" + dateTimeOriginal.getMilliseconds();
+	} else if (dateTimeOriginalSelection == "meta-date-interpret") {
+		dateTimeOriginal   = interpretDateFromFilename(file);
+		timeZoneOffset     = "" + dateTimeOriginal.getTimezoneOffset()*60;
+		subSecTimeOriginal = "" + dateTimeOriginal.getMilliseconds();
 	}
 
 	return {
-		artist           : artist,
-		title            : title,
-		copyright        : copyright,
-		dateTimeOriginal : dateTimeOriginal
+		artist             : artist,
+		title              : title,
+		copyright          : copyright,
+		dateTimeOriginal   : dateTimeOriginal,
+		timeZoneOffset     : timeZoneOffset,
+		subSecTimeOriginal : subSecTimeOriginal
 	};
 }
 
@@ -536,71 +626,112 @@ function getNewEXIFData(file) {
 
 
 
-function createEXIF(file) {
-	const input = getNewEXIFData(file);
-	if (!Object.values(input).some(a => a)) {
+// https://www.media.mit.edu/pia/Research/deepview/exif.html
+// https://web.archive.org/web/20131018091152/http://exif.org/Exif2-2.PDF
+// http://www.libpng.org/pub/png/spec/1.2/PNG-Chunks.html
+// https://www.w3.org/TR/png-3/#eXIf
+// https://archimedespalimpsest.net/Documents/External/XMP/XMPSpecificationPart3.pdf
+function createEXIF(metadata) {
+	if (!Object.values(metadata).some(a => a)) {
 		return null;
 	}
 
 	const encoder = new TextEncoder(); //encoder.encode(str) = uint8array of ascii
-
-	let numberOfEntries = 0;
-
 	const IFD0 = [];
-	if (input.artist) {
-		const bytes = Array.from(encoder.encode(input.artist));
+	let numberOfIFD0Entries = 0;
+
+	// Artist
+	if (metadata.artist) {
+		const bytes = Array.from(encoder.encode(metadata.artist));
 		IFD0.push({
 			tag    : [0x01, 0x3B],
-			format : [0x00, 0x02],
+			format : [0x00, 0x02], // ascii
 			length : bytes.length,
 			size   : bytes.length, // 1 byte/component
 			data   : bytes
 		});
-		numberOfEntries++;
+		numberOfIFD0Entries++;
 	}
-	if (input.title) {
-		const bytes = Array.from(encoder.encode(input.title));
+
+	// ImageDescription
+	if (metadata.title) {
+		const bytes = Array.from(encoder.encode(metadata.title));
 		IFD0.push({
 			tag    : [0x01, 0x0E],
 			format : [0x00, 0x02],
 			length : bytes.length,
-			size   : bytes.length, // 1 byte/component
+			size   : bytes.length,
 			data   : bytes
 		});
-		numberOfEntries++;
+		numberOfIFD0Entries++;
 	}
-	if (input.copyright) {
-		const bytes = Array.from(encoder.encode(input.copyright));
+
+	// Copyright
+	if (metadata.copyright) {
+		const bytes = Array.from(encoder.encode(metadata.copyright));
 		IFD0.push({
 			tag    : [0x82, 0x98],
 			format : [0x00, 0x02],
 			length : bytes.length,
-			size   : bytes.length, // 1 byte/component
+			size   : bytes.length,
 			data   : bytes
 		});
-		numberOfEntries++;
+		numberOfIFD0Entries++;
 	}
 
-	const SubIFD = [];
-	if (input.dateTimeOriginal) {
-		const bytes = Array.from(encoder.encode(input.dateTimeOriginal));
-		SubIFD.push({
+	// EXIFSubIFD is metadata introduced by Exif, not TIFF
+
+	// DateTimeOriginal
+	const EXIFSubIFD = [];
+	if (metadata.dateTimeOriginal) {
+		let localDate = getEXIFDateString(metadata.dateTimeOriginal);
+		const bytes = Array.from(encoder.encode(localDate));
+		EXIFSubIFD.push({
 			tag    : [0x90, 0x03],
 			format : [0x00, 0x02],
 			length : bytes.length, // max 20 components
-			size   : bytes.length, // 1 byte/component
+			size   : bytes.length,
 			data   : bytes
 		});
-		numberOfEntries++;
+	}
+
+	// TimeZoneOffset
+	if (metadata.timeZoneOffset) {
+		const offset = parseInt(metadata.timeZoneOffset);
+		const bytes = numberToBytes(offset & 0x7FFF, 2);
+		bytes[0] = offset < 0 ? (bytes[0] | 0x8000) : bytes[0];
+		EXIFSubIFD.push({
+			tag    : [0x88, 0x2a],
+			format : [0x00, 0x01], // signed short
+			length : 1,
+			size   : 2, // 2 byte/component
+			data   : bytes
+		});
+	}
+
+	// SubSecTimeOriginal
+	if (metadata.subSecTimeOriginal) {
+		const bytes = Array.from(encoder.encode(metadata.subSecTimeOriginal));
+		EXIFSubIFD.push({
+			tag    : [0x92, 0x91],
+			format : [0x00, 0x02],
+			length : bytes.length,
+			size   : bytes.length,
+			data   : bytes
+		});
+	}
+
+	if (EXIFSubIFD.length) {
+		numberOfIFD0Entries++; // IFD0 link to EXIFSubIFD
 	}
 
 	exif = [
 		0x4D, 0x4D, 0x00, 0x2A, 0x00, 0x00, 0x00, 0x08, // TIFF header: byte order (big-endian/Motorola) & IFD offset NOTE: ALL offsets are relative to the first 0x4D byte
 	];
-	exif = exif.concat(numberToBytes(numberOfEntries+1, 2)); // number of entries in IFD0 + 1 for link to IFD1
+	exif = exif.concat(numberToBytes(numberOfIFD0Entries+1, 2)); // number of entries in IFD0 + 1 for link to IFD1 (even though the link will be all zeros)
 
 	exif_data = [];
-	offset = 8 + 2 + numberOfEntries*12 + 4; // tiff header + numberOfEntries + IFD0 fields + link to subIFD + link to IFD1
+	offset = 8 + 2 + numberOfIFD0Entries*12 + 4; // tiff header + numberOfIFD0Entries + (IFD0 fields + link to subIFD) + link to IFD1
 
 	for (let i = 0; i < IFD0.length; i++) {
 		const field = IFD0[i];
@@ -609,6 +740,10 @@ function createEXIF(file) {
 		exif = exif.concat(numberToBytes(field.length, 4));
 		if (field.size <= 4) {
 			exif = exif.concat(field.data);
+			// padding is added to the right
+			for (let j = field.size; j < 4; j++) {
+				exif = exif.concat([0x00]);
+			}
 		} else {
 			exif = exif.concat(numberToBytes(offset, 4));
 			exif_data = exif_data.concat(field.data);
@@ -616,8 +751,8 @@ function createEXIF(file) {
 		}
 	}
 
-	if (SubIFD.length) {
-		exif = exif.concat([0x87, 0x69]); // SubIFD tag
+	if (EXIFSubIFD.length) {
+		exif = exif.concat([0x87, 0x69]); // EXIFSubIFD tag
 		exif = exif.concat([0x00, 0x04]); // format, long uint
 		exif = exif.concat([0x00, 0x00, 0x00, 0x01]); // one component
 		exif = exif.concat(numberToBytes(offset, 4)); // link
@@ -630,20 +765,24 @@ function createEXIF(file) {
 
 	exif = exif.concat(exif_data);
 
-	// SubIFD
+	// EXIFSubIFD
 
-	if (SubIFD.length) {
-		exif = exif.concat(numberToBytes(SubIFD.length+1, 2)); // number of entries in SubIFD
+	if (EXIFSubIFD.length) {
+		exif = exif.concat(numberToBytes(EXIFSubIFD.length+1, 2)); // number of entries in EXIFSubIFD
 		exif_data = [];
-		offset += 2 + SubIFD.length*12 + 4; // number of entries + SubIFD fields + end of SubIFD
+		offset += 2 + EXIFSubIFD.length*12 + 4; // number of entries + EXIFSubIFD fields + end of EXIFSubIFD
 
-		for (let i = 0; i < SubIFD.length; i++) {
-			const field = SubIFD[i];
+		for (let i = 0; i < EXIFSubIFD.length; i++) {
+			const field = EXIFSubIFD[i];
 			exif = exif.concat(field.tag);
 			exif = exif.concat(field.format);
 			exif = exif.concat(numberToBytes(field.length, 4));
 			if (field.size <= 4) {
 				exif = exif.concat(field.data);
+				// padding is added to the right
+				for (let j = field.size; j < 4; j++) {
+					exif = exif.concat([0x00]);
+				}
 			} else {
 				exif = exif.concat(numberToBytes(offset, 4));
 				exif_data = exif_data.concat(field.data);
@@ -658,48 +797,51 @@ function createEXIF(file) {
 		exif = exif.concat(exif_data);
 	}
 
-	if (exif.length > 65525) {
+	if (exif.length > 65535-6) {
 		throw new Error("EXIF is too big");
 	}
 
 	return exif;
 }
 
-// https://www.media.mit.edu/pia/Research/deepview/exif.html
-// https://web.archive.org/web/20131018091152/http://exif.org/Exif2-2.PDF
-// http://www.libpng.org/pub/png/spec/1.2/PNG-Chunks.html
-// https://www.w3.org/TR/png-3/#eXIf
-async function insertEXIF(blob, exif, width, height) {
+async function insertMetadata(blob, metadata) {
 	if (blob.type !== "image/jpeg" && blob.type !== "image/png") {
-		return [blob, width, height];
+		return blob;
 	}
+
+	const exif = createEXIF(metadata);
 	if (exif === null) {
-		return [blob, width, height];
+		return blob;
 	}
 
 	const dataToCombine = [];
 	if (blob.type == "image/jpeg") {
-
-		dataToCombine.push([
-			0XFF, 0xD8,                                           // JPG start of image
-			0xFF, 0xE1,                                           // APP1 header
-		]);
+		// insert after JFIF/APP0 (0xFFE0) and just before the quantization table (0xFFDB)
+		const start = await blob.slice(0, 30).bytes();
+		let i;
+		for (i = 2; i < start.length-1; i++)
+			if (start[i] == 0xFF && start[i+1] == 0xDB)
+				break
+		if (start[i] != 0xFF || start[i+1] != 0xDB)
+			throw new Error("Unexpected JFIF/APP0 size");
+		dataToCombine.push(start.slice(0, i))                     // JPG SOI + JFIF/APP0
+		dataToCombine.push([0xFF, 0xE1]);                         // APP1 header
 		dataToCombine.push(numberToBytes(exif.length+8, 2));      // APP1 header size
 		dataToCombine.push([0x45, 0x78, 0x69, 0x66, 0x00, 0x00]); // EXIF header (JPG only)
-		dataToCombine.push(exif);                                 // EXIF Metadata
-		const end = await blob.slice(2).bytes();
-		dataToCombine.push(end);                                  // Image data
+		dataToCombine.push(exif);                                 // EXIF metadata
+		const data = await blob.slice(i).bytes();
+		dataToCombine.push(data);                                 // Image data
 	} else {
-		const start = await blob.slice(0, 33).bytes();
-		dataToCombine.push(start);                                // PNG header + IHDR
+		const ihdr = await blob.slice(0, 33).bytes();
+		dataToCombine.push(ihdr);                                 // PNG header + IHDR
 		dataToCombine.push(numberToBytes(exif.length, 4));        // Chunk length
 		dataToCombine.push([0x65, 0x58, 0x49, 0x66]);             // EXIF chunk type field
-		dataToCombine.push(exif);                                 // EXIF Metadata
+		dataToCombine.push(exif);                                 // EXIF metadata
 		let crc = pngCRC([0x65, 0x58, 0x49, 0x66]);
 			crc = pngCRC(exif, crc ^ 0xffffffff);
 		dataToCombine.push(numberToBytes(crc, 4));                // CRC
-		const end = await blob.slice(33).bytes();                 // Image data
-		dataToCombine.push(end);
+		const data = await blob.slice(33).bytes();                // Image data
+		dataToCombine.push(data);
 	}
 
 	let totalLength = 0;
@@ -713,11 +855,7 @@ async function insertEXIF(blob, exif, width, height) {
 		ptr += arr.length;
 	}
 
-	return [
-		new Blob([combinedData], { type: blob.type }),
-		width,
-		height
-	];
+	return new Blob([combinedData], { type: blob.type });
 }
 
 
@@ -732,32 +870,37 @@ async function insertEXIF(blob, exif, width, height) {
 
 function processFiles(f) {
 	if (f.length == 1 && !f[0].webkitRelativePath.includes("/")) {
-		f = f[0];
-
-		console.log("beginning file: " + f.name);
-		return resizeImage(f)
-		.then(resolved => {
-			const [blob, width, height] = resolved;
-			const exif = createEXIF(f);
-			return insertEXIF(blob, exif, width, height);
-		})
-		.then(resolved => {
-			const [exifBlob, width, height] = resolved;
-			const newName    = getNewFilename(f, width, height).join("");
-			const newModtime = getNewModtime(f).getTime();
-
-			console.log("renaming to " + newName);
-			saveAs(exifBlob, newName, newModtime);
-		})
-		.catch(err => {
-			console.log(err);
-		});
+		processSingle(f[0]);
 	} else {
-		createZip(f);
+		processMultiple(f);
 	}
 }
 
-function createZip(files) {
+function processSingle(f) {
+	console.log("beginning file: " + f.name);
+	let blob, width, height;
+	return resizeImage(f)
+	.then(resolved => {
+		const [b, w, h] = resolved;
+		blob = b, width = w, height = h;
+		return getNewMetadata(f);
+	})
+	.then(metadata => {
+		return insertMetadata(blob, metadata);
+	})
+	.then(metaBlob => {
+		const newName    = getNewFilename(f, width, height).next().value;
+		const newModtime = getNewModtime(f).getTime();
+
+		console.log("renaming to: " + newName);
+		saveAs(metaBlob, newName, newModtime);
+	})
+	.catch(err => {
+		console.log(err);
+	});
+}
+
+function processMultiple(files) {
 	if (!files.length) return;
 
 	const zip = new JSZip();
@@ -776,27 +919,31 @@ function createZip(files) {
 		Array.from(files).map(f => {
 
 			console.log("beginning file: " + f.name);
+			let blob, width, height;
 			return resizeImage(f)
 			.then(resolved => {
-				const [blob, width, height] = resolved;
-				const exif = createEXIF(f);
-				return insertEXIF(blob, exif, width, height);
+				const [b, w, h] = resolved;
+				blob = b, width = w, height = h;
+				return getNewMetadata(f);
 			})
-			.then(resolved => {
-				const [exifBlob, width, height] = resolved;
+			.then(metadata => {
+				return insertMetadata(blob, metadata);
+			})
+			.then(metaBlob => {
 				// get unique file name
-				const [dir, basename, ext] = getNewFilename(f, width, height);
-				let newName = [dir, basename, ext].join("");
-				for (let i = 1; usedFilenames.has(newName); i++)
-					newName = [dir, basename, "-", i, ext].join("");
-				usedFilenames.add(newName);
+				let newName;
+				for(newName of getNewFilename(f, width, height)) {
+					if (!usedFilenames.has(newName)) {
+						usedFilenames.add(newName);
+						break;
+					}
+				}
 				// set modtime, JSZip assumes UTC
 				const newModtime = getNewModtime(f);
-				const offsetMs = newModtime.getTimezoneOffset() * 60 * 1000;
-				newModtime.setTime(newModtime.getTime() - offsetMs);
+				const newModtimeUTC = new Date(newModtime.toUTCString().substring(0, 25));
 
 				console.log("adding file: " + newName);
-				zip.file(newName, exifBlob, {date: newModtime});
+				zip.file(newName, metaBlob, {date: newModtimeUTC});
 			});
 		})
 	)
@@ -844,7 +991,6 @@ function resizeImage(file) {
 				const fimg = new fabric.Image(img).scale(newWidth / img.width);
 				const r = fcanvas.getRetinaScaling();
 				lanczosFilter.scaleX = lanczosFilter.scaleY = fimg.scaleX * r;
-				console.log(r);
 				fimg.filters = [lanczosFilter];
 				fimg.applyFilters();
 				fcanvas.add(fimg);
@@ -1008,11 +1154,31 @@ document.querySelectorAll("input[name='option-modtime']").forEach(tag => {
 });
 
 document.getElementById("filename-template-text").addEventListener("input", (event) => {
-	event.target.value = event.target.value.replace(/[^ a-zA-Z0-9!@#$%^&)(_+=\.,-]/g, "");
+	event.target.value = event.target.value.replace(/[^ a-zA-Z0-9!@#$%^&)(_+=.,-]/g, ""); // filename-safe chars only
+});
+
+document.getElementById("meta-artist").addEventListener("input", (event) => {
+	event.target.value = event.target.value.replace(/[^ -~]/g, ""); // ascii only
+});
+
+document.getElementById("meta-title").addEventListener("input", (event) => {
+	event.target.value = event.target.value.replace(/[^ -~]/g, "");
+});
+
+document.getElementById("meta-copyright").addEventListener("input", (event) => {
+	event.target.value = event.target.value.replace(/[^ -~]/g, "");
 });
 
 document.getElementById("jpg-quality-text").addEventListener("input", (event) => {
-	event.target.value = event.target.value.replace(/[^0-9.]/g, "");
+	event.target.value = event.target.value.replace(/[^0-9.]/g, ""); // rational numbers only
+});
+
+document.getElementById("image-maxwidth").addEventListener("input", (event) => {
+	event.target.value = event.target.value.replace(/[^0-9]/g, ""); // integers only
+});
+
+document.getElementById("image-maxheight").addEventListener("input", (event) => {
+	event.target.value = event.target.value.replace(/[^0-9]/g, "");
 });
 
 document.querySelectorAll("input").forEach(tag => {
@@ -1040,7 +1206,7 @@ window.addEventListener("DOMContentLoaded", () => {
 	document.getElementById("jpg-quality-text").disabled = (getRadioValue("option-filetype") != "filetype-jpg");
 	document.getElementById("modtime-date-picker").disabled = (getRadioValue("option-modtime") != "modtime-set");
 
-	document.getElementById("modtime-date-picker").value = getLocalDateISOString();
+	document.getElementById("modtime-date-picker").value = getDatePickerDateString();
 
 	document.getElementById("js-off").classList.toggle("hidden");
 	document.getElementById("js-on").classList.toggle("hidden");
