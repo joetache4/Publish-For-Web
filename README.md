@@ -52,25 +52,6 @@ If left blank, then the corresponding dimension will have no limit.
 **`No change`** Will attempt to save images in the same format as they were inputted.
 
 <div align="center">
-<h3>Last Modified Time</h3>
-</div>
-
-The Last Modified Time (modtime) is metadata indicating when a file was last altered. It is not when the file was created.
-
-> [!IMPORTANT]
-> These options will have no effect when processing single file inputs. Browsers will always change the modtime to "now" for downloaded files. As a workaround, you can upload multiple images, all of which will have the correct modtime when zipped together.
-
-*Choose 1 below.*
-
-**`Now`** (Default) Set modtime to now.
-
-**`Set`** Set modtime to a date of your choosing.
-
-**`Interpret from filename`** Search a file name for a string of exactly 8 digits, followed by exactly 6 digits. There may or may not be other non-digit characters surrounding these two groups. The first group will be interpreted as a date in "YYYYMMDD" format, while the second will be interpreted as a time in "hhmmss" format.
-
-**`No change`** Output will match input's modtime.
-
-<div align="center">
 <h3>Metadata</h3>
 </div>
 
@@ -108,4 +89,4 @@ How metadata is stored depends on output format, as described below.
 
 - *From new modtime:* Will set DateTimeOriginal to the modtime of the output image.
 
-- *Interpret from filename:* Will set DateTimeOriginal to the date interpreted from the file name. See the Last Modified Time section for more details.
+- *Interpret from filename:* Will set DateTimeOriginal to the date interpreted from the file name. This is done by searching a file name for a string of exactly 8 digits, followed by exactly 6 digits. There may or may not be other non-digit characters surrounding these two groups. The first group will be interpreted as a date in "YYYYMMDD" format, while the second will be interpreted as a time in "hhmmss" format.

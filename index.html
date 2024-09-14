@@ -27,7 +27,7 @@
 <tr><td>%x</td><td>old file extension</td></tr>
 <tr><td>%w</td><td>width</td></tr>
 <tr><td>%h</td><td>height</td></tr>
-<tr><td>%d{FORMAT}</td><td>modtime in the given format <span class="note">(see below)</span></td></tr>
+<tr><td>%d{FORMAT}</td><td>image capture date in the given format <span class="note">(see below)</span></td></tr>
 <tr><td>%D{FORMAT}</td><td>today in the given format <span class="note">(see below)</span></td></tr>
 <tr><td>%r{N}</td><td>N random digits</td></tr>
 <tr><td>%R{N}</td><td>N random alphanumeric chars</td></tr>
@@ -111,27 +111,6 @@
 </fieldset>
 
 <fieldset>
-<legend>Last Modified Time</legend>
-<div>
-<input type="radio" id="modtime-now" name="option-modtime" value="modtime-now" default checked required />
-<label for="modtime-now">Now</label>
-</div>
-<div>
-<input type="radio" id="modtime-set" name="option-modtime" value="modtime-set" />
-<label for="modtime-set">Set:</label>
-<input id="modtime-date-picker" type="datetime-local" step=1 />
-</div>
-<div>
-<input type="radio" id="modtime-interpret" name="option-modtime" value="modtime-interpret" />
-<label for="modtime-interpret"><span class="tooltip" data-tip="An 8-digit sequence followed by a 6-digit sequence will be interpretted as date and time. The two sequences can be located anywhere as long as they are in that order.">Interpret from filename</span></label>
-</div>
-<div>
-<input type="radio" id="modtime-carry" name="option-modtime" value="modtime-carry" />
-<label for="modtime-carry">No change</label>
-</div>
-</fieldset>
-
-<fieldset>
 <legend><span class="tooltip" data-tip="Metadata is currently supported for JPGs and PNGs only.">Metadata</span></legend>
 <div>
 <label for="option-meta-artist" style="display: inline-block; width: 90px;">Artist:</label>
@@ -153,8 +132,7 @@
 <select name="option-meta-date" id="meta-date">
 <option value="meta-date-none">None</option>
 <option value="meta-date-exif">Read JPG EXIF</option>
-<option value="meta-date-modtime-old">From old modtime</option>
-<option value="meta-date-modtime-new">From new modtime</option>
+<option value="meta-date-modtime">From modtime</option>
 <option value="meta-date-interpret">Interpret from filename</option>
 </select>
 </div>

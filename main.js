@@ -90,17 +90,16 @@ function interpretDateFromFilename(file) {
 	return null;
 }
 
-// TODO? Due to the following problems, only download zips
-function saveAs(content, filename, modtime=Date.now()) {
+function saveAs(content, filename) {
 	const [dir, basename, ext] = splitFilename(filename);
 	const mime = MIME[ext];
 	console.log("downloading: " + mime);
-	const file = new File([content], filename, { type: mime, lastModified: modtime }); // lastModified currently has no actual effect
+	const file = new File([content], filename, { type: mime });
 	const url = URL.createObjectURL(file);
 	const link = document.createElement("a");
 	link.href = url;
 	link.download = filename;
-	link.click(); // certain characters, including %, will be replaced with _ unless the images are in a .zip
+	link.click(); // TODO? only download zip - certain characters, including %, will be replaced with _ unless the images are in a .zip
 	URL.revokeObjectURL(url);
 }
 
@@ -183,7 +182,8 @@ function* getNewFilename(file, width, height) {
 							out += characters.charAt(randomIndex);
 						}
 					} else if (command === "d") {
-						out += DateTime.fromISO(new Date(getNewModtime(file)).toISOString()).toFormat(arg);
+						// TODO get date according the following priority: EXIF DateTimeOriginal, interpretDateFromFilename, file.lastModified
+						out += DateTime.fromISO(new Date(file.lastModified).toISOString()).toFormat(arg);
 					} else if (command === "D") {
 						out += DateTime.fromISO(new Date().toISOString()).toFormat(arg);
 					}
@@ -301,26 +301,6 @@ function getNewQuality() {
 	return quality;
 }
 
-function getNewModtime(file) {
-	const val = getRadioValue("option-modtime");
-	let date = null;
-	if (val === "modtime-interpret") {
-		date = interpretDateFromFilename(file);
-	} else if (val === "modtime-now") {
-		date = new Date();
-	} else if (val === "modtime-set") {
-		dateval = document.getElementById("modtime-date-picker").value;
-		if (dateval !== "")
-			date = new Date(dateval);
-	} else if (val === "modtime-carry") {
-		date = new Date(file.lastModified);
-	}
-	if (date === null) {
-		date = new Date(file.lastModified)
-	}
-	return date;
-}
-
 async function getNewMetadata(file) {
 	const artist    = document.getElementById("meta-artist").value;
 	const title     = document.getElementById("meta-title").value;
@@ -391,13 +371,9 @@ async function getNewMetadata(file) {
 				}
 			}
 		}
-	} else if (dateTimeOriginalSelection == "meta-date-modtime-old") {
+	} else if (dateTimeOriginalSelection == "meta-date-modtime") {
 		dateTimeOriginal   = new Date(file.lastModified);
 		timeZoneOffset     = "" + -dateTimeOriginal.getTimezoneOffset(); // zero is a valid value
-		subSecTimeOriginal = "" +  dateTimeOriginal.getMilliseconds();
-	} else if (dateTimeOriginalSelection == "meta-date-modtime-new") {
-		dateTimeOriginal   = new Date(getNewModtime(file));
-		timeZoneOffset     = "" + -dateTimeOriginal.getTimezoneOffset();
 		subSecTimeOriginal = "" +  dateTimeOriginal.getMilliseconds();
 	} else if (dateTimeOriginalSelection == "meta-date-interpret") {
 		dateTimeOriginal   = interpretDateFromFilename(file);
@@ -707,10 +683,9 @@ function processSingle(f) {
 	})
 	.then(metaBlob => {
 		const newName    = getNewFilename(f, width, height).next().value;
-		const newModtime = getNewModtime(f).getTime();
 
 		console.log("renaming to: " + newName);
-		saveAs(metaBlob, newName, newModtime);
+		saveAs(metaBlob, newName);
 	})
 	.catch(err => {
 		console.log(err);
@@ -755,13 +730,9 @@ function processMultiple(files) {
 						break;
 					}
 				}
-				// set modtime, JSZip assumes UTC
-				const newModtime = getNewModtime(f);
-				newModtime.setTime(newModtime.getTime() - newModtime.getTimezoneOffset()*60*1000);
-				//const newModtimeUTC = new Date(newModtime.toUTCString().substring(0, 25));
 
 				console.log("adding file: " + newName);
-				zip.file(newName, metaBlob, {date: newModtime});
+				zip.file(newName, metaBlob);
 			});
 		})
 	)
@@ -944,12 +915,6 @@ document.querySelectorAll("input[name='option-filetype']").forEach(tag => {
 	});
 });
 
-document.querySelectorAll("input[name='option-modtime']").forEach(tag => {
-	tag.addEventListener("input", (event) => {
-		document.getElementById("modtime-date-picker").disabled = (event.target.value !== "modtime-set");
-	});
-});
-
 document.getElementById("filename-template-text").addEventListener("input", (event) => {
 	event.target.value = event.target.value.replace(/[\x00-\x1F\x7F-\x9F\\\/:*?"<>|]/g, ""); // filename-safe chars only (exclude control characters and Windows-forbidden chars)
 });
@@ -1009,9 +974,6 @@ window.addEventListener("DOMContentLoaded", () => {
 
 	document.getElementById("filename-template-text").disabled = (getRadioValue("option-filename") != "filename-template");
 	document.getElementById("jpg-quality-text").disabled = (getRadioValue("option-filetype") != "filetype-jpg");
-	document.getElementById("modtime-date-picker").disabled = (getRadioValue("option-modtime") != "modtime-set");
-
-	document.getElementById("modtime-date-picker").value = getDatePickerDateString();
 
 	document.getElementById("js-off").classList.toggle("hidden");
 	document.getElementById("js-on").classList.toggle("hidden");
