@@ -188,8 +188,8 @@
 
 <fieldset>
 <legend>Progress</legend>
-<div class="center" style="height:80px">
-
+<div style="height:80px; display:flex; flex-direction:row; justify-content:center;">
+<div style="display:flex; flex-direction:row; align-items:center;"><span id="progress-message" style="font-size: 14px;"></span><span id="spinner" class="hidden"><div class="lds-dual-ring"></div></span></div>
 </div>
 </fieldset>
 
@@ -731,10 +731,10 @@ async function insertEXIF(blob, exif, width, height) {
 
 
 function processFiles(f) {
-	usedFilenames = new Set();
 	if (f.length == 1 && !f[0].webkitRelativePath.includes("/")) {
 		f = f[0];
-		console.log("  beginning file: " + f.name);
+
+		console.log("beginning file: " + f.name);
 		return resizeImage(f)
 		.then(resolved => {
 			const [blob, width, height] = resolved;
@@ -745,6 +745,7 @@ function processFiles(f) {
 			const [exifBlob, width, height] = resolved;
 			const newName    = getNewFilename(f, width, height).join("");
 			const newModtime = getNewModtime(f).getTime();
+
 			console.log("renaming to " + newName);
 			saveAs(exifBlob, newName, newModtime);
 		})
@@ -762,12 +763,19 @@ function createZip(files) {
 	const zip = new JSZip();
 	const usedFilenames = new Set();
 
+	const progress = document.getElementById("progress-message");
+	const spinner = document.getElementById("spinner");
+
+	if (!spinner.classList.contains("hidden")) return; // another job is running
+
 	console.log("input: " + files.length);
+	progress.textContent = "Reading files...";
+	spinner.classList.remove("hidden");
 
 	Promise.all(
 		Array.from(files).map(f => {
 
-			console.log("  beginning file: " + f.name);
+			console.log("beginning file: " + f.name);
 			return resizeImage(f)
 			.then(resolved => {
 				const [blob, width, height] = resolved;
@@ -776,16 +784,18 @@ function createZip(files) {
 			})
 			.then(resolved => {
 				const [exifBlob, width, height] = resolved;
+				// get unique file name
 				const [dir, basename, ext] = getNewFilename(f, width, height);
 				let newName = [dir, basename, ext].join("");
 				for (let i = 1; usedFilenames.has(newName); i++)
 					newName = [dir, basename, "-", i, ext].join("");
 				usedFilenames.add(newName);
+				// set modtime, JSZip assumes UTC
 				const newModtime = getNewModtime(f);
-				// JSZip assumes UTC
 				const offsetMs = newModtime.getTimezoneOffset() * 60 * 1000;
 				newModtime.setTime(newModtime.getTime() - offsetMs);
-				console.log("  adding file: " + newName);
+
+				console.log("adding file: " + newName);
 				zip.file(newName, exifBlob, {date: newModtime});
 			});
 		})
@@ -793,13 +803,17 @@ function createZip(files) {
 	.then(() => {
 
 		console.log("generating zip");
+		progress.textContent = "Zipping files...";
 		zip.generateAsync({ type: "blob", compression: "STORE" })
 		.then(content => {
 			saveAs(content, "images.zip");
+			progress.textContent = "Your new images were downloaded.";
+			spinner.classList.add("hidden");
 		});
 	})
 	.catch(err => {
-		alert("There was an error reading your files. Make sure they are all valid images.");
+		progress.textContent = "There was an error reading your files. Make sure they are all valid images.";
+		spinner.classList.add("hidden");
 		console.log(err);
 	});
 }
@@ -839,7 +853,7 @@ function resizeImage(file) {
 				const newFormat  = getNewFormat(file);
 				const newQuality = getNewQuality(file) ** (1.0/6); // take root b/c lanczos quality seems to increase exponentially
 
-				console.log("    converting image: " + newFormat + " " + newQuality);
+				console.log("converting image: " + newFormat + " " + newQuality);
 				canvas.toBlob(blob => {
 					resolve([blob, newWidth, newHeight]);
 				}, newFormat, newQuality);
@@ -848,14 +862,14 @@ function resizeImage(file) {
 				reject(error);
 			};
 
-			console.log("    interpretting image");
+			console.log("interpretting image");
 			img.src = event.target.result;
 		};
 		reader.onerror = (error) => {
 			reject(error);
 		};
 
-		console.log("  reading file");
+		console.log("reading file");
 		reader.readAsDataURL(file);
 	});
 }
