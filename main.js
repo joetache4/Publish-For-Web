@@ -46,32 +46,30 @@ async function getOldMetadata(file) {
 	}
 	if (exifStart) {
 		// search for link to SubIFD
-		// TODO fails on Intel byte order
-		// TODO converting *255**n to <<8*n caused an error
-		const IFD0Offset = bytes[exifStart+4]*255**3 + bytes[exifStart+5]*255**2 + bytes[exifStart+6]*255**1 + bytes[exifStart+7]*255**0;
-		const numberOfIFD0Entries = bytes[exifStart+IFD0Offset]*255 + bytes[exifStart+IFD0Offset+1] - 1; // subtract link to IFD1
+		const bigEndian = bytes[exifStart] == "M".charCodeAt(0);
+		const IFD0Offset = bytesToNumber(bytes, exifStart+4, 4, bigEndian, signed=false);
+		const numberOfIFD0Entries = bytesToNumber(bytes, exifStart+IFD0Offset, 2, bigEndian, signed=false) - 1; // subtract link to IFD1
 		for (let i = 0; i < numberOfIFD0Entries; i++) {
 			let IFD0EntryStart = exifStart + IFD0Offset + 2 + 12*i;
 			if (bytes[IFD0EntryStart] == 0x87 && bytes[IFD0EntryStart+1] == 0x69) {
-				const subIFDOffset = bytes[IFD0EntryStart+8]*255**3 + bytes[IFD0EntryStart+9]*255**2 + bytes[IFD0EntryStart+10]*255**1 + bytes[IFD0EntryStart+11]*255**0;
-				const numberOfSubIFDEntries = bytes[exifStart + subIFDOffset]*255 + bytes[exifStart + subIFDOffset + 1] - 1;
+				const subIFDOffset = bytesToNumber(bytes, IFD0EntryStart+8, 4, bigEndian, signed=false);
+				const numberOfSubIFDEntries = (bytes[exifStart + subIFDOffset]<<8) + bytes[exifStart + subIFDOffset + 1] - 1;
 				// search for DateTimeOriginal, TimeZoneOffset, and SubSecTimeOriginal entries inside SubIFD
-				// store each value as a string
 				for (let j = 0; j < numberOfSubIFDEntries; j++) {
 					let subIFDEntryStart = exifStart + subIFDOffset + 2 + 12*j;
 					if (dateTimeOriginal === "" && bytes[subIFDEntryStart] == 0x90 && bytes[subIFDEntryStart+1] == 0x03) {
-						const dataOffset = bytes[subIFDEntryStart+8]*255**3 + bytes[subIFDEntryStart+9]*255**2 + bytes[subIFDEntryStart+10]*255**1 + bytes[subIFDEntryStart+11]*255**0;
+						const dataOffset = bytesToNumber(bytes, subIFDEntryStart+8, 4, bigEndian, signed=false);
 						for (let k = exifStart + dataOffset; k < exifStart + dataOffset + 19; k++)
 							dateTimeOriginal += String.fromCharCode(bytes[k]);
 					} else if (timeZoneOffset === "" && bytes[subIFDEntryStart] == 0x88 && bytes[subIFDEntryStart+1] == 0x2A) {
-						timeZoneOffset = (bytes[subIFDEntryStart+8] & 0x8000 ? -1 : 1) * ((bytes[subIFDEntryStart+8] & 0x7FFF)*255 + bytes[subIFDEntryStart+9]);
+						timeZoneOffset = bytesToNumber(bytes, subIFDEntryStart+8, 2, bigEndian, signed=true);
 						timeZoneOffset = "" + timeZoneOffset;
 					} else if (subSecTimeOriginal === "" && bytes[subIFDEntryStart] == 0x92 && bytes[subIFDEntryStart+1] == 0x91) {
-						const dataSize = bytes[IFD0EntryStart+4]*255**3 + bytes[IFD0EntryStart+5]*255**2 + bytes[IFD0EntryStart+6]*255**1 + bytes[IFD0EntryStart+7]*255**0;
+						const dataSize = bytesToNumber(bytes, IFD0EntryStart+4, 4, bigEndian, signed=false);
 						if (dataSize <= 4) {
 							for (let k = subIFDEntryStart + 8; k < subIFDEntryStart + 8 + dataSize; k++) subSecTimeOriginal += String.fromCharCode(bytes[k]);
 						} else {
-							const dataOffset = bytes[subIFDEntryStart+8]*255**3 + bytes[subIFDEntryStart+9]*255**2 + bytes[subIFDEntryStart+10]*255**1 + bytes[subIFDEntryStart+11]*255**0;
+							const dataOffset = bytesToNumber(bytes, subIFDEntryStart+8, 4, bigEndian, signed=false);
 							for (let k = exifStart + dataOffset; k < exifStart + dataOffset + dataSize; k++) subSecTimeOriginal += String.fromCharCode(bytes[k]);
 						}
 					}
@@ -874,15 +872,30 @@ function clamp(num, min, max) {
 	return Math.min(Math.max(num, min), max);
 }
 
-function numberToBytes(num, pad) {
-	if (num >= 2**(8*pad)) {
+function numberToBytes(num, pad, signed=true) {
+	if (num >= 2**(8*pad - (signed ? 1 : 0)) || num < -(2**(8*pad-1))) {
 		throw new Error("Overflow");
+	}
+	if (!signed && num < 0) {
+		throw new Error("Unexpected negative input");
 	}
 	const bytes = [];
 	for (let i = 0; i < pad; i++) {
 		bytes[i] = (num >>> (8*(pad - 1 - i))) & 0xFF;
 	}
 	return bytes;
+}
+
+function bytesToNumber(bytes, start, length, bigEndian=true, signed=true) {
+	let num = 0;
+	let j, neg;
+	for (let i = start; i < start+length; i++) {
+		j = bigEndian ? i : 2*start+length-i-1;
+		num = (num << 8) + bytes[j];
+	}
+	if (signed && num & 1<<length)
+		num = (num ^ (2**(8*length)-1)) + 1;
+	return num;
 }
 
 function pngCRC(bytes, crc = 0xffffffff) {
