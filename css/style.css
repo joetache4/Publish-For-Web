@@ -81,6 +81,16 @@ ul {
 	padding-left: 10px;
 }
 
+.note {
+	font-style: italic;
+}
+
+.center {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+
 body {
 	display: flex;
 	flex-direction: column;

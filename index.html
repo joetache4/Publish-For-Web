@@ -41,7 +41,7 @@
 </fieldset>
 
 <fieldset>
-<legend>Date String Format</legend> <!-- TODO On Linux/Mac, hide 'z' and show options with : character -->
+<legend>Date String Format</legend>
 <table>
 <tr><td>ss</td><td>second, padded to 2</td></tr>
 <tr><td>mm</td><td>minute, padded to 2</td></tr>
@@ -49,7 +49,8 @@
 <tr><td>HH</td><td>hour in 24-hour time, padded to 2</td></tr>
 <tr><td>a</td><td>meridiem (i.e., AM, PM)</td></tr>
 <tr><td>ZZZZ</td><td>abbreviated named offset (e.g., EST)</td></tr>
-<tr><td>z</td><td>IANA zone (e.g., America/New_York)</td></tr>
+<tr class="hide-windows"><td>t</td><td>localized time (e.g., 9:07 AM)</td></tr>
+<tr class="hide-linux"><td>z</td><td>IANA zone (e.g., America/New_York)</td></tr>
 <tr><td>dd</td><td>day of the month, padded to 2</td></tr>
 <tr><td>EEE</td><td>day of the week, as an abbreviate localized string (e.g., Wed)</td></tr>
 <tr><td>MM</td><td>month as a padded number</td></tr>
@@ -57,6 +58,7 @@
 <tr><td>yy</td><td>two-digit year</td></tr>
 <tr><td>DD</td><td>localized date with abbreviated month (e.g., Aug 6, 2014)</td></tr>
 <tr><td>DDD</td><td>localized date with full month (e.g., August 6, 2014)</td></tr>
+<tr class="hide-windows"><td>ff</td><td>localized date and time (e.g., Aug 6, 2014, 1:07 PM)</td></tr>
 <tr><td>X</td><td>unix timestamp in seconds (e.g., 1407287224)</td></tr>
 <tr><td>x</td><td>unix timestamp in milliseconds</td></tr>
 </table>
@@ -88,12 +90,12 @@
   <div>
     <label for="option-dimension-width" style="display: inline-block; width: 50px;">Width:</label>
     <input type="text" id="image-maxwidth" name="option-dimension-width" maxlength="5" length="6" value="1280" />
-	<span style="font-style: italic; margin-left: 10px;">(set blank for no limit)</span>
+	<span class="note" style="margin-left: 10px;">(set blank for no limit)</span>
   </div>
   <div>
     <label for="option-dimension-height" style="display: inline-block; width: 50px;">Height:</label>
     <input type="text" id="image-maxheight" name="option-dimension-height" maxlength="5" length="6" value="1024" />
-	<span style="font-style: italic; margin-left: 10px;">(set blank for no limit)</span>
+	<span class="note" style="margin-left: 10px;">(set blank for no limit)</span>
   </div>
 </fieldset>
 
@@ -160,8 +162,8 @@
 	</select>
 	<input id="modtime-date-picker" type="datetime-local" />
   </div>
-  <div style="display: flex; justify-content: center;">
-  <span style="font-style: italic;">(all other metadata will be removed)</span>
+  <div class="center">
+  <span class="note">(all other metadata will be removed)</span>
   </div>
 </fieldset>
 
@@ -262,11 +264,10 @@ function getRadioValue(groupName) {
 	return null;
 }
 
-let usedFilenames;
 function getNewFilename(file) {
 	const val = getRadioValue("option-filename");
 	let [dir, basename, ext] = splitFilename(file.webkitRelativePath || file.name);
-	
+
 	if (val === "filename-whitespace") {
 		basename = basename.trim().toLowerCase().replaceAll(/ +/g, "-");
 	} else if (val === "filename-template") {
@@ -313,10 +314,10 @@ function getNewFilename(file) {
 					out += ext.substring(1); // old extension
 					command = "";
 				} else if (command === "w") {
-					out += 1; ///////////////////////////////////////////////// TODO
+					out += imgDims[file][0];
 					command = "";
 				} else if (command === "h") {
-					out += 1; ///////////////////////////////////////////////// TODO
+					out += imgDims[file][1];
 					command = "";
 				} else if (command === "d") {
 					i++;
@@ -464,13 +465,13 @@ async function insertEXIF(file, blob) {
 		return blob;
 	}
 
-	const [artist, title, copyright, dateTimeOriginal] = getNewEXIFData(file);	
+	const [artist, title, copyright, dateTimeOriginal] = getNewEXIFData(file);
 	if (!artist && !title && !copyright && !dateTimeOriginal) {
 		return blob;
 	}
-	
+
 	const encoder = new TextEncoder(); //encoder.encode(str) = uint8array of ascii
-	
+
 	let numberOfEntries = 0;
 
 	const IFD0 = [];
@@ -507,7 +508,7 @@ async function insertEXIF(file, blob) {
 		});
 		numberOfEntries++;
 	}
-	
+
 	const SubIFD = [];
 	if (dateTimeOriginal) {
 		const bytes = Array.from(encoder.encode(dateTimeOriginal));
@@ -520,12 +521,12 @@ async function insertEXIF(file, blob) {
 		});
 		numberOfEntries++;
 	}
-	
+
 	exif = [
 		0x4D, 0x4D, 0x00, 0x2A, 0x00, 0x00, 0x00, 0x08, // TIFF header: byte order (big-endian/Motorola) & IFD offset NOTE: ALL offsets are relative to the first 0x4D byte
 	];
 	exif = exif.concat(numberToBytes(numberOfEntries+1, 2)); // number of entries in IFD0 + 1 for link to IFD1
-	
+
 	exif_data = [];
 	offset = 8 + 2 + numberOfEntries*12 + 4; // tiff header + numberOfEntries + IFD0 fields + link to subIFD + link to IFD1
 
@@ -542,28 +543,28 @@ async function insertEXIF(file, blob) {
 			offset += field.size;
 		}
 	}
-	
+
 	if (SubIFD.length) {
 		exif = exif.concat([0x87, 0x69]); // SubIFD tag
 		exif = exif.concat([0x00, 0x04]); // format, long uint
 		exif = exif.concat([0x00, 0x00, 0x00, 0x01]); // one component
 		exif = exif.concat(numberToBytes(offset, 4)); // link
-		
+
 	}
-	
+
 	exif = exif.concat([
 		0x00, 0x00, 0x00, 0x00, // pointer to next IFD, all zeros since there is none
 	]);
 
 	exif = exif.concat(exif_data);
-	
+
 	// SubIFD
-	
+
 	if (SubIFD.length) {
 		exif = exif.concat(numberToBytes(SubIFD.length+1, 2)); // number of entries in SubIFD
 		exif_data = [];
 		offset += 2 + SubIFD.length*12 + 4; // number of entries + SubIFD fields + end of SubIFD
-		
+
 		for (let i = 0; i < SubIFD.length; i++) {
 			const field = SubIFD[i];
 			exif = exif.concat(field.tag);
@@ -577,25 +578,25 @@ async function insertEXIF(file, blob) {
 				offset += field.size;
 			}
 		}
-		
+
 		exif = exif.concat([
 			0x00, 0x00, 0x00, 0x00, // pointer to next IFD, all zeros since there is none
 		]);
-		
+
 		exif = exif.concat(exif_data);
 	}
-	
+
 	if (exif.length > 65525) {
 		throw new Error("EXIF is too big");
 	}
-	
+
 	const jpg_start  = [
 		0XFF, 0xD8, // jpg_end start of image
 		0xFF, 0xE1, // APP1 header
 	]
 	.concat(numberToBytes(exif.length+8, 2)) // APP1 header size
 	.concat([0x45, 0x78, 0x69, 0x66, 0x00, 0x00,]); // EXIF header (JPG only)
-	const jpg_end  = await blob.slice(2).bytes();	
+	const jpg_end  = await blob.slice(2).bytes();
 	const combinedData = new Uint8Array(jpg_start.length + exif.length + jpg_end.length);
 	combinedData.set(jpg_start);
 	combinedData.set(exif, jpg_start.length);
@@ -609,14 +610,17 @@ async function insertEXIF(file, blob) {
 
 
 
+let usedFilenames;
+let imgDims;
 
 function processFiles(f) {
 	usedFilenames = new Set();
+	imgDims = {};
 	if (f.length == 1 && !f[0].webkitRelativePath.includes("/")) {
 		f = f[0];
 		console.log("  beginning file: " + f.name);
 		return resizeImage(f)
-		.then(blob => {	
+		.then(blob => {
 			return insertEXIF(f, blob);
 		})
 		.then(exifBlob => {
@@ -646,6 +650,7 @@ function resizeImage(file) {
 				canvas.height = newHeight;
 				const ctx = canvas.getContext("2d");
 				ctx.drawImage(img, 0, 0, newWidth, newHeight);
+				imgDims[file] = [newWidth, newHeight];
 
 				newFormat  = getNewFormat(file);
 				newQuality = getNewQuality(file);
@@ -683,7 +688,7 @@ async function createZip(files) {
 
 			console.log("  beginning file: " + f.name + " (" + f.length + ")");
 			return resizeImage(f)
-			.then(blob => {	
+			.then(blob => {
 				return insertEXIF(f, blob);
 			})
 			.then(exifBlob => {
@@ -734,7 +739,7 @@ document.addEventListener("drop", (event) => {
 	event.preventDefault();
 	const items = event.dataTransfer.items;
 	const files = [];
-	
+
 	let count = items.length;
 
 	const onFile = (file) => {
@@ -800,15 +805,15 @@ document.addEventListener("drop", async (event) => {
 			await scanFiles(entry, allEntries);
 		}
 	}
-	
+
 	// convert FileSystemFileEntry's into File's
 	// file type is lost for files inside dropped folders
-	const files = await Promise.all(allEntries.map(entry => 
-		new Promise((resolve, reject) => { 
+	const files = await Promise.all(allEntries.map(entry =>
+		new Promise((resolve, reject) => {
 			entry.file(resolve, reject);
 		})
 	));
-	
+
 	console.log(files);
 }, false);
 */
@@ -848,8 +853,19 @@ document.getElementById("filetype-jpg").oninput = filetypeChanged;
 document.getElementById("filetype-png").oninput = filetypeChanged;
 document.getElementById("filetype-carry").oninput = filetypeChanged;
 
-
 // TODO check if above radio buttons start off checked
+
+window.addEventListener("DOMContentLoaded", () => {
+	if (window.navigator.userAgent.includes("Win")) {
+		for (const e of document.querySelectorAll(".hide-windows")) {
+			e.style.display = "none";
+		}
+	} else {
+		for (const e of document.querySelectorAll(".hide-linux")) {
+			e.style.display = "none";
+		}
+	}
+});
 
 </script>
 </body>
