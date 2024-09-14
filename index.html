@@ -8,6 +8,7 @@
 	<link rel="stylesheet" type="text/css" href="./css/fonts.css">
 	<link rel="stylesheet" type="text/css" href="./css/style.css">
 	<script src="./scripts/luxon.min.js"></script>
+	<script src="./scripts/fabric.min.js"></script>
 	<script src="./scripts/jszip.min.js"></script>
 </head>
 
@@ -98,7 +99,7 @@
   <legend>Format</legend>
   <div>
     <input type="radio" id="filetype-jpg" name="option-filetype" value="filetype-jpg" checked required />
-    <label for="filetype-jpg">JPG</label><span style="margin-right: 10px">|</span><span style="margin-right: 10px">Quality:</span><input id="jpg-quality-text" type="text" maxlength="4" value="0.8" default="0.8" style="width:40px" /><span class="note">(a decimal between 0.0 and 1.0)</span>
+    <label for="filetype-jpg">JPG</label><span style="margin-right: 10px">|</span><span style="margin-right: 10px">Quality:</span><input id="jpg-quality-text" type="text" maxlength="4" value="0.8" default="0.9" style="width:40px" /><span class="note">(a decimal between 0.0 and 1.0)</span>
   </div>
   <div>
     <input type="radio" id="filetype-png" name="option-filetype" value="filetype-png" />
@@ -800,24 +801,41 @@ function createZip(files) {
 	});
 }
 
-// TODO resized images look pretty bad...
 function resizeImage(file) {
 	return new Promise((resolve, reject) => {
 		const reader = new FileReader();
 		reader.onload = (event) => {
 			const img = new Image();
 			img.onload = () => {
-				const canvas = document.createElement("canvas");
 				const [newWidth, newHeight] = getNewDimensions(img);
 
-				console.log("    resizing image. width: " + newWidth + " height: " + newHeight);
-				canvas.width = newWidth;
-				canvas.height = newHeight;
-				const ctx = canvas.getContext("2d");
-				ctx.drawImage(img, 0, 0, newWidth, newHeight);
+				const canvas = document.createElement("canvas");
+				const fcanvas = new fabric.Canvas(canvas, {
+					imageSmoothingEnabled: false,
+					enableRetinaScaling: false,
+				});
+				fcanvas.setWidth(newWidth);
+				fcanvas.setHeight(newHeight);
 
-				newFormat  = getNewFormat(file);
-				newQuality = getNewQuality(file);
+				const lanczosFilter = new fabric.Image.filters.Resize({
+					scaleX: 1,
+					scaleY: 1,
+					resizeType: "lanczos",
+					lanczosLobes: 3,
+				});
+
+				const fimg = new fabric.Image(img).scale(newWidth / img.width);
+				const r = fcanvas.getRetinaScaling();
+				lanczosFilter.scaleX = lanczosFilter.scaleY = fimg.scaleX * r;
+				console.log(r);
+				fimg.filters = [lanczosFilter];
+				fimg.applyFilters();
+				fcanvas.add(fimg);
+				fcanvas.renderAll();
+
+				const newFormat  = getNewFormat(file);
+				const newQuality = getNewQuality(file) ** (1.0/6); // take root b/c lanczos quality seems to increase exponentially
+
 				console.log("    converting image: " + newFormat + " " + newQuality);
 				canvas.toBlob(blob => {
 					resolve([blob, newWidth, newHeight]);
