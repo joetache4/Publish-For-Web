@@ -25,6 +25,8 @@ async function readMetadata(file) {
 		metadata.type = "image/bmp";
 	else if (bytes[0] == 0x00 && bytes[1] == 0x00 && bytes[2] == 0x01 && bytes[3] == 0x00)
 		metadata.type = "image/ico";
+	else if (bytes[4] == 0x66 && bytes[5] == 0x74 && bytes[6] == 0x79 && bytes[7] == 0x70 && bytes[8] == 0x61 && bytes[9] == 0x76 && bytes[10] == 0x69 && bytes[11] == 0x66)
+		metadata.type = "image/avif";
 	// TODO .svg (image/svg+xml)
 	else
 		metadata.type = null;
