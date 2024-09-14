@@ -81,9 +81,6 @@ ul {
 	padding-left: 10px;
 }
 
-
-/* First "page" */
-
 body {
 	display: flex;
 	flex-direction: column;

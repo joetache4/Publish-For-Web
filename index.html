@@ -7,6 +7,7 @@
 	<link rel="icon" type="image/png" href="images/favicon.png">
 	<link rel="stylesheet" type="text/css" href="./css/fonts.css">
 	<link rel="stylesheet" type="text/css" href="./css/style.css">
+	<script src="./scripts/luxon.min.js"></script>
 	<script src="./scripts/jszip.min.js"></script>
 </head>
 
@@ -76,12 +77,12 @@
   <legend>Max Dimensions</legend>
   <div>
     <label for="option-dimension-width" style="display: inline-block; width: 50px;">Width:</label>
-    <input type="text" id="image-maxwidth" name="option-dimension-width" maxlength="5" size="6" value="1280" />
+    <input type="text" id="image-maxwidth" name="option-dimension-width" maxlength="5" length="6" value="1280" />
 	<span style="font-style: italic; margin-left: 10px;">(set blank for no limit)</span>
   </div>
   <div>
     <label for="option-dimension-height" style="display: inline-block; width: 50px;">Height:</label>
-    <input type="text" id="image-maxheight" name="option-dimension-height" maxlength="5" size="6" value="1024" />
+    <input type="text" id="image-maxheight" name="option-dimension-height" maxlength="5" length="6" value="1024" />
 	<span style="font-style: italic; margin-left: 10px;">(set blank for no limit)</span>
   </div>
 </fieldset>
@@ -91,7 +92,7 @@
   <legend>Format</legend>
   <div>
     <input type="radio" id="filetype-jpg" name="option-filetype" value="filetype-jpg" checked />
-    <label for="filetype-jpg">JPG</label><span class="inline-sep">|</span><span style="margin-right: 10px;">Quality:</span><input id="image-quality" type="text" size="5" value="0.8" />
+    <label for="filetype-jpg">JPG</label><span class="inline-sep">|</span><span style="margin-right: 10px;">Quality:</span><input id="image-quality" type="text" length="5" value="0.8" />
   </div>
   <div>
     <input type="radio" id="filetype-png" name="option-filetype" value="filetype-png" />
@@ -128,25 +129,26 @@
 <legend>EXIF Metadata</legend>
   <div>
     <label for="option-exif-artist" style="display: inline-block; width: 105px;">Artist:</label>
-    <input type="text" id="exif-maxwidth" name="option-exif-artist" />
+    <input type="text" id="exif-artist" name="option-exif-artist" />
   </div>
   <div>
     <label for="option-exif-title" style="display: inline-block; width: 105px;">Title:</label>
-    <input type="text" id="exif-maxwidth" name="option-exif-title" />
+    <input type="text" id="exif-title" name="option-exif-title" />
   </div>
   <div>
     <label for="option-exif-copyright" style="display: inline-block; width: 105px;">Copyright:</label>
-    <input type="text" id="exif-maxwidth" name="option-exif-copyright" />
+    <input type="text" id="exif-copyright" name="option-exif-copyright" />
   </div>
   <div>
     <label for="option-exif-date" style="display: inline-block; width: 105px;">DateTimeOriginal:</label>
-	<select name="option-exif-date" id="option-exif-date">
+	<select name="option-exif-date" id="exif-date">
 	  <option value="exif-date-none">None</option>
 	  <option value="exif-date-carry">Read JPG EXIF</option>
 	  <option value="exif-date-modtime-old">From old modtime</option>
 	  <option value="exif-date-modtime-new">From new modtime</option>
 	  <option value="exif-date-interpret">Interpret from filename</option>
 	</select>
+	<input id="modtime-date-picker" type="datetime-local" />
   </div>
 </fieldset>
 
@@ -169,6 +171,8 @@
 
 
 <script>
+
+var DateTime = luxon.DateTime;
 
 const MIME = {
 	".jpg" : "image/jpeg",
@@ -213,7 +217,7 @@ function safeParseFloat(str, def) {
 */
 
 
-usedFilenames = new Set();
+let usedFilenames;
 function getNewFilename(file) {
 	const val = getRadioValue("option-filename");
 	let [dir, basename, ext] = splitFilename(file.webkitRelativePath || file.name);
@@ -240,7 +244,7 @@ function getNewFilename(file) {
 							out += characters.charAt(randomIndex);
 						}
 					} else if (command === "d") {
-						out += file.lastModified; ///////////////////////////////////////////////// TODO format
+						out += DateTime.fromISO(new Date(file.lastModified).toISOString()).toFormat(arg);
 					}
 					command = "";
 					arg = "";
@@ -385,6 +389,185 @@ function getNewModtime(file) {
 	return date;
 }
 
+function getNewEXIFData(file) {
+	const artist = document.getElementById("exif-artist").value;
+	const title = document.getElementById("exif-title").value;
+	const copyright = document.getElementById("exif-copyright").value;
+	let dateTimeOriginal = document.getElementById("exif-date").value;
+	if (dateTimeOriginal !== "") {
+		if (dateTimeOriginal == "exif-date-carry") {
+			// TODO read exif date
+			dateTimeOriginal = "";
+		} else if (dateTimeOriginal == "exif-date-modtime") {
+			dateTimeOriginal = DateTime.fromISO(getNewModtime(file).toISOString()).toFormat("yyyy:LL:dd HH:mm:ss");
+		} else if (dateTimeOriginal == "exif-date-set") {
+			dateTimeOriginal = document.getElementById("exif-date-picker").value;
+			dateTimeOriginal = DateTime.fromISO(dateTimeOriginal.toISOString()).toFormat("yyyy:LL:dd HH:mm:ss");
+		} else {
+			dateTimeOriginal = "";
+		}
+	}
+	console.log(dateTimeOriginal);
+	return [artist, title, copyright, dateTimeOriginal];
+}
+
+function numberToBytes(num, pad) {
+	if (num >= 2**(8*pad)) {
+		throw new Error("Overflow");
+	}
+	const bytes = [];
+	for (let i = 0; i < pad; i++) {
+		bytes[i] = (num >>> (8*(pad - 1 - i))) & 0xFF;
+	}
+	return bytes;
+}
+
+async function insertEXIF(file, blob) {
+	// TODO png can also include exif now
+
+	if (blob.type !== "image/jpeg" && blob.type !== "image/png") {
+		return blob;
+	}
+
+	const [artist, title, copyright, dateTimeOriginal] = getNewEXIFData(file);	
+	if (!artist && !title && !copyright && !dateTimeOriginal) {
+		return blob;
+	}
+	
+	const encoder = new TextEncoder(); //encoder.encode(str) = uint8array of ascii
+	
+	let numberOfEntries = 0;
+
+	const IFD0 = [];
+	if (artist) {
+		const bytes = Array.from(encoder.encode(artist));
+		IFD0.push({
+			tag    : [0x01, 0x3B],
+			format : [0x00, 0x02],
+			length : bytes.length,
+			size   : bytes.length, // 1 byte/component
+			data   : bytes
+		});
+		numberOfEntries++;
+	}
+	if (title) {
+		const bytes = Array.from(encoder.encode(title));
+		IFD0.push({
+			tag    : [0x01, 0x0E],
+			format : [0x00, 0x02],
+			length : bytes.length,
+			size   : bytes.length, // 1 byte/component
+			data   : bytes
+		});
+		numberOfEntries++;
+	}
+	if (copyright) {
+		const bytes = Array.from(encoder.encode(copyright));
+		IFD0.push({
+			tag    : [0x82, 0x98],
+			format : [0x00, 0x02],
+			length : bytes.length,
+			size   : bytes.length, // 1 byte/component
+			data   : bytes
+		});
+		numberOfEntries++;
+	}
+	
+	const SubIFD = [];
+	if (dateTimeOriginal) {
+		const bytes = Array.from(encoder.encode(dateTimeOriginal));
+		SubIFD.push({
+			tag    : [0x90, 0x03],
+			format : [0x00, 0x02],
+			length : bytes.length, // max 20 components
+			size   : bytes.length, // 1 byte/component
+			data   : bytes
+		});
+		numberOfEntries++;
+	}
+	
+	exif = [
+		0x4D, 0x4D, 0x00, 0x2A, 0x00, 0x00, 0x00, 0x08, // TIFF header: byte order (big-endian/Motorola) & IFD offset NOTE: ALL offsets are relative to the first 0x4D byte
+	];
+	exif = exif.concat(numberToBytes(numberOfEntries+1, 2)); // number of entries in IFD0 + 1 for link to IFD1
+	
+	exif_data = [];
+	offset = 8 + 2 + numberOfEntries*12 + 4; // tiff header + numberOfEntries + IFD0 fields + link to subIFD + link to IFD1
+
+	for (let i = 0; i < IFD0.length; i++) {
+		const field = IFD0[i];
+		exif = exif.concat(field.tag);
+		exif = exif.concat(field.format);
+		exif = exif.concat(numberToBytes(field.length, 4));
+		if (field.size <= 4) {
+			exif = exif.concat(field.data);
+		} else {
+			exif = exif.concat(numberToBytes(offset, 4));
+			exif_data = exif_data.concat(field.data);
+			offset += field.size;
+		}
+	}
+	
+	if (SubIFD.length) {
+		exif = exif.concat([0x87, 0x69]); // SubIFD tag
+		exif = exif.concat([0x00, 0x04]); // format, long uint
+		exif = exif.concat([0x00, 0x00, 0x00, 0x01]); // one component
+		exif = exif.concat(numberToBytes(offset, 4)); // link
+		
+	}
+	
+	exif = exif.concat([
+		0x00, 0x00, 0x00, 0x00, // pointer to next IFD, all zeros since there is none
+	]);
+
+	exif = exif.concat(exif_data);
+	
+	// SubIFD
+	
+	if (SubIFD.length) {
+		exif = exif.concat(numberToBytes(SubIFD.length+1, 2)); // number of entries in SubIFD
+		exif_data = [];
+		offset += 2 + SubIFD.length*12 + 4; // number of entries + SubIFD fields + end of SubIFD
+		
+		for (let i = 0; i < SubIFD.length; i++) {
+			const field = SubIFD[i];
+			exif = exif.concat(field.tag);
+			exif = exif.concat(field.format);
+			exif = exif.concat(numberToBytes(field.length, 4));
+			if (field.size <= 4) {
+				exif = exif.concat(field.data);
+			} else {
+				exif = exif.concat(numberToBytes(offset, 4));
+				exif_data = exif_data.concat(field.data);
+				offset += field.size;
+			}
+		}
+		
+		exif = exif.concat([
+			0x00, 0x00, 0x00, 0x00, // pointer to next IFD, all zeros since there is none
+		]);
+		
+		exif = exif.concat(exif_data);
+	}
+	
+	if (exif.length > 65525) {
+		throw new Error("EXIF is too big");
+	}
+	
+	const jpg_start  = [
+		0XFF, 0xD8, // jpg_end start of image
+		0xFF, 0xE1, // APP1 header
+	]
+	.concat(numberToBytes(exif.length+8, 2)) // APP1 header size
+	.concat([0x45, 0x78, 0x69, 0x66, 0x00, 0x00,]); // EXIF header (JPG only)
+	const jpg_end  = await blob.slice(2).bytes();	
+	const combinedData = new Uint8Array(jpg_start.length + exif.length + jpg_end.length);
+	combinedData.set(jpg_start);
+	combinedData.set(exif, jpg_start.length);
+	combinedData.set(jpg_end,  jpg_start.length + exif.length);
+
+	return new Blob([combinedData], { type: blob.type });
+}
 
 
 
@@ -437,14 +620,16 @@ async function createZip(files) {
 	Promise.all(
 		Array.from(files).map(f => {
 
-			console.log("  beginning file: " + f.name + " (" + f.size + ")");
+			console.log("  beginning file: " + f.name + " (" + f.length + ")");
 			return resizeImage(f)
-			.then(blob => {
-
+			.then(blob => {	
+				return insertEXIF(f, blob);
+			})
+			.then(exifBlob => {
 				newName    = getNewFilename(f);
 				newModtime = getNewModtime(f);
 				console.log("  adding file: " + newName);
-				zip.file(newName, blob, {date: newModtime});
+				zip.file(newName, exifBlob, {date: newModtime});
 			});
 		})
 	)
@@ -477,38 +662,6 @@ function saveAs(content, filename) {
 
 const supportsRelativePath = 'webkitRelativePath' in File.prototype;
 const supportsDirs = typeof DataTransferItem != 'undefined' && 'webkitGetAsEntry' in DataTransferItem.prototype;
-
-const readRecurse = (dir, onComplete, onError) => {
-	let files = [];
-	let total = 0;
-	let errored = false;
-	let reachedEnd = false;
-	const onErr = (err) => {
-		if (!errored) {
-			errored = true;
-			onError(err);
-		}
-	};
-	const onDone = (f) => {
-		files = files.concat(f);
-		if (!--total && reachedEnd) onComplete(files);
-	};
-	const reader = dir.createReader();
-	const onRead = (entries) => {
-		if (!entries.length && !errored) {
-			if (!total) onComplete(files);
-			else reachedEnd = true;
-		} else reader.readEntries(onRead, onError);
-		for (const entry of entries) {
-			++total;
-			if (entry.isFile) {
-				entry.file(f => onDone([new File([f], entry.fullPath.slice(1), f)]), onErr);
-			}
-			else readRecurse(entry, onDone, onErr);
-		}
-	};
-	reader.readEntries(onRead, onError);
-}
 
 document.addEventListener('dragover', (e) => {
     e.preventDefault();
@@ -569,14 +722,18 @@ document.getElementById("input-files").oninput = handleInput;
 document.getElementById("input-dirs").oninput = handleInput;
 
 function onFiles(f) {
+	usedFilenames = new Set();
 	if (f.length == 1) {
 		f = f[0];
 		console.log("  beginning file: " + f.name);
 		return resizeImage(f)
-		.then(content => {
+		.then(blob => {	
+			return insertEXIF(f, blob);
+		})
+		.then(exifBlob => {
 			let newName = getNewFilename(f);
 			console.log("renaming to " + newName);
-			saveAs(content, newName); ////////////// TODO set modtime
+			saveAs(exifBlob, newName); ////////////// TODO set modtime
 		})
 		.catch(err => {
 			console.log(err);
@@ -584,6 +741,38 @@ function onFiles(f) {
 	} else {
 		createZip(f);
 	}
+}
+
+const readRecurse = (dir, onComplete, onError) => {
+	let files = [];
+	let total = 0;
+	let errored = false;
+	let reachedEnd = false;
+	const onErr = (err) => {
+		if (!errored) {
+			errored = true;
+			onError(err);
+		}
+	};
+	const onDone = (f) => {
+		files = files.concat(f);
+		if (!--total && reachedEnd) onComplete(files);
+	};
+	const reader = dir.createReader();
+	const onRead = (entries) => {
+		if (!entries.length && !errored) {
+			if (!total) onComplete(files);
+			else reachedEnd = true;
+		} else reader.readEntries(onRead, onError);
+		for (const entry of entries) {
+			++total;
+			if (entry.isFile) {
+				entry.file(f => onDone([new File([f], entry.fullPath.slice(1), f)]), onErr);
+			}
+			else readRecurse(entry, onDone, onErr);
+		}
+	};
+	reader.readEntries(onRead, onError);
 }
 
 document.getElementById("modtime-set").onchange = (event) => {
