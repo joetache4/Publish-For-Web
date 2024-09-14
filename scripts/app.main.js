@@ -133,7 +133,7 @@ function getNewDimensions(img) {
 		maxWidth = img.width;
 	}
 	if (isNaN(maxHeight)) {
-		maxWidth = img.height;
+		maxHeight = img.height;
 	}
 
 	if (newWidth > maxWidth) {
