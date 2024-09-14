@@ -55,20 +55,6 @@ h1 {
 	letter-spacing: 0.1em;
 }
 
-.hidden {
-	display: none;
-}
-
-.noselect {
-  -webkit-touch-callout: none; /* iOS Safari */
-	-webkit-user-select: none; /* Safari */
-	 -khtml-user-select: none; /* Konqueror HTML */
-	   -moz-user-select: none; /* Old versions of Firefox */
-	    -ms-user-select: none; /* Internet Explorer/Edge */
-	        user-select: none; /* Non-prefixed version, currently
-	                              supported by Chrome, Edge, Opera and Firefox */
-}
-
 a {
 	color: #5AF;
 }
@@ -79,16 +65,12 @@ td {
 
 ul {
 	padding-left: 10px;
+	line-height: 1.25;
+	margin: 0;
 }
 
 .note {
 	font-style: italic;
-}
-
-.center {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
 }
 
 body {
@@ -132,13 +114,17 @@ input[type="radio"] {
 }
 
 input[type="checkbox"] {
-	margin-right: 10px;
 	cursor: pointer;
 	accent-color: #5AF;
 }
 
-.inline-sep {
-	padding: 0 10px 0;
+input {
+	margin-right: 10px;	
+}
+
+label {
+	margin-right: 10px;
+	text-align: right;
 }
 
 /* https://blog.logrocket.com/creating-beautiful-tooltips-with-only-css/ */
@@ -164,9 +150,16 @@ input[type="checkbox"] {
 	width: 300px;
 	padding: 10px;
 	border-radius: 10px;
-	background: #181818;
-	color: #FFF;
+	background: #5AF;
+	color: white;
 	text-align: center;
+	font-weight: normal;
+	
+	/* fix for one-line tips */
+	min-height: 18px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 
 	visibility: hidden;
 	opacity: 0;
@@ -192,13 +185,14 @@ input[type="checkbox"] {
 	transform: translateY(-50%);
 
 	/* the arrow */
-	border: 10px solid #181818;
-	border-color: transparent #181818 transparent transparent;
+	border: 10px solid #5AF;
+	border-color: transparent #5AF transparent transparent;
 
 	visibility: hidden;
 	opacity: 0;
 	transition: 0.3s ease-in-out;
 }
+
 .tooltip:hover:before, .tooltip:hover:after {
 	visibility: visible;
 	opacity: 1;
@@ -259,4 +253,24 @@ input[type="checkbox"] {
 	left: 50%;
 	transform: translate(-50%, 0%);
 	z-index: 1000;
+}
+
+.noselect {
+  -webkit-touch-callout: none; /* iOS Safari */
+	-webkit-user-select: none; /* Safari */
+	 -khtml-user-select: none; /* Konqueror HTML */
+	   -moz-user-select: none; /* Old versions of Firefox */
+	    -ms-user-select: none; /* Internet Explorer/Edge */
+	        user-select: none; /* Non-prefixed version, currently
+	                              supported by Chrome, Edge, Opera and Firefox */
+}
+
+.center {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+
+.hidden {
+	display: none;
 }
