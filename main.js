@@ -1002,33 +1002,44 @@ document.addEventListener("keydown", (event) => {
 	}
 });
 
-// TODO don't set cursor to end if a bad char is inputted
+function filterInput(event, filter) {
+	const tag = event.target;
+	const input = tag.value;
+	const cursorPosition = tag.selectionStart-1;
+	const filteredInput = tag.value.replace(filter, "");
+	if (filteredInput != input) {
+		tag.value = filteredInput;
+		tag.selectionStart = cursorPosition;
+		tag.selectionEnd = cursorPosition;
+	}
+}
+
 document.getElementById("filename-template-text").addEventListener("input", (event) => {
-	event.target.value = event.target.value.replace(/[\x00-\x1F\x7F-\x9F\\\/:*?"<>|]/g, ""); // filename-safe chars only (exclude control characters and Windows-forbidden chars)
+	filterInput(event, /[\x00-\x1F\x7F-\x9F\\\/:*?"<>|]/g); // filename-safe chars only (exclude control characters and Windows-forbidden chars)
 });
 
 document.getElementById("meta-artist").addEventListener("input", (event) => {
-	event.target.value = event.target.value.replace(/[^ -~]/g, ""); // printable ascii only
+	filterInput(event, /[^ -~]/g); // printable ascii only
 });
 
 document.getElementById("meta-title").addEventListener("input", (event) => {
-	event.target.value = event.target.value.replace(/[^ -~]/g, "");
+	filterInput(event, /[^ -~]/g);
 });
 
 document.getElementById("meta-copyright").addEventListener("input", (event) => {
-	event.target.value = event.target.value.replace(/[^ -~]/g, "");
+	filterInput(event, /[^ -~]/g);
 });
 
 document.getElementById("jpg-quality-text").addEventListener("input", (event) => {
-	event.target.value = event.target.value.replace(/[^0-9.]/g, ""); // rational numbers only
+	filterInput(event, /[^0-9.]/g); // rational numbers only
 });
 
 document.getElementById("image-maxwidth").addEventListener("input", (event) => {
-	event.target.value = event.target.value.replace(/[^0-9]/g, ""); // integers only
+	filterInput(event, /[^0-9]/g); // integers only
 });
 
 document.getElementById("image-maxheight").addEventListener("input", (event) => {
-	event.target.value = event.target.value.replace(/[^0-9]/g, "");
+	filterInput(event, /[^0-9]/g);
 });
 
 document.getElementById("filename-template-text").addEventListener("focus", (event) => {
