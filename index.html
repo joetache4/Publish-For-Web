@@ -17,7 +17,108 @@
 
 <div class="all-options">
 
+<div class="option-col"></div>
+
 <div class="option-col">
+<fieldset>
+<legend><span class="tooltip" data-tip="In the event of name conflicts, file indices will be appended like so: file.jpg, file-1.jpg, file-2.jpg, etc.">File Name</span></legend>
+<div class="selection">
+<input type="radio" id="filename-whitespace" name="option-filename" value="filename-whitespace" />
+<label for="filename-whitespace">Remove whitespace & convert to lowercase</label>
+</div>
+<div class="selection">
+<input type="radio" id="filename-template" name="option-filename" value="filename-template" />
+<label for="filename-template">Template:</label>
+<input id="filename-template-text" type="text" value="web-%f-%wx%h" default="web-%f-%wx%h" fill-blank />
+</div>
+<div class="selection">
+<input type="radio" id="filename-carry" name="option-filename" value="filename-carry" default checked />
+<label for="filename-carry">No change</label>
+</div>
+</fieldset>
+
+<fieldset>
+<legend>Format</legend>
+<div class="selection">
+<input type="radio" id="filetype-jpg" name="option-filetype" value="filetype-jpg" default checked />
+<label for="filetype-jpg">JPG</label><span style="margin-right: 10px">|</span><span style="margin-right: 10px">Quality:</span><input id="jpg-quality-text" type="text" maxlength="4" value="0.9" fill-blank default="0.9" style="width:40px" />
+<span class="note">(a decimal between 0.0 and 1.0)</span>
+</div>
+<div class="selection">
+<input type="radio" id="filetype-png" name="option-filetype" value="filetype-png" />
+<label for="filetype-png">PNG</label>
+</div>
+<div class="selection">
+<input type="radio" id="filetype-webp" name="option-filetype" value="filetype-webp" />
+<label for="filetype-webp">WEBP</label>
+</div>
+<div class="selection">
+<input type="radio" id="filetype-match" name="option-filetype" value="filetype-match" />
+<label for="filetype-match"><span class="tooltip" data-tip="Will attempt to maintain JPG, PNG, and WEBP file formats in output. All others will be JPG at the above quality.">Match Input</span></label>
+</div>
+</fieldset>
+
+<fieldset>
+<legend>Max Dimensions</legend>
+<div class="selection">
+<label for="option-dimension-width" style="display: inline-block; width: 35px;">Width:</label>
+<input type="text" id="image-maxwidth" name="option-dimension-width" maxlength="5" value="1280" default="1280" style="width:100px" />
+<span class="note">(set blank for no limit)</span>
+</div>
+<div class="selection">
+<label for="option-dimension-height" style="display: inline-block; width: 35px;">Height:</label>
+<input type="text" id="image-maxheight" name="option-dimension-height" maxlength="5" value="1024" default="1024" style="width:100px" />
+<span class="note">(set blank for no limit)</span>
+</div>
+</fieldset>
+
+<fieldset>
+<legend><span class="tooltip" data-tip="All metadata will be removed except that specified below. Metadata will be saved for JPGs only.">EXIF Metadata</span></legend>
+<div class="selection">
+<label for="option-meta-artist" style="display: inline-block; width: 90px;">Artist:</label>
+<input type="text" id="meta-artist" name="option-meta-artist" maxlength="280" default="" />
+<span class="note">(blank ignored)</span>
+</div>
+<div class="selection">
+<label for="option-meta-title" style="display: inline-block; width: 90px;">Title/Description:</label>
+<input type="text" id="meta-title" name="option-meta-title" maxlength="280" default="" />
+<span class="note">(blank ignored)</span>
+</div>
+<div class="selection">
+<label for="option-meta-copyright" style="display: inline-block; width: 90px;">Copyright:</label>
+<input type="text" id="meta-copyright" name="option-meta-copyright" maxlength="280" default="" />
+<span class="note">(blank ignored)</span>
+</div>
+<div class="selection">
+<label for="option-meta-date" style="display: inline-block; width: 90px;">DateTimeOriginal:</label>
+<input type="checkbox" name="option-meta-date" id="meta-date">
+<span class="note tooltip" data-tip="Will attempt in order: read input file EXIF, parse input file name, use last modified time">(interprets from input file)</span>
+</div>
+<br>
+</fieldset>
+
+<fieldset>
+<legend>START</legend>
+<br>
+<div id="js-off" class="center">
+<p style="color: red; font-weight: bold;">Enable Javascript to start.</p>
+</div>
+<div id="js-on" class="center hidden">
+<div>
+<input type="file" id="input-files" multiple accept="image/*">
+<div class="button" onclick="filePicker(false)">Select Files</div>
+<input type="file" id="input-dirs" webkitdirectory multiple accept="image/*">
+<div class="button" onclick="filePicker(true)">Select Folders</div>
+</div>
+<p style="font-size: 14px">Or drag files anywhere</p>
+</div>
+</fieldset>
+
+<div class="center social-links"><div class="img-rescale"><a href="https://github.com/joetache4/Publish-For-Web"><img src="images/github-mark-white.png" /></a></div></div>
+</div>
+
+<div class="option-col">
+<div id="info-panel" class="hidden">
 <fieldset>
 <legend>Template String Format</legend>
 <table>
@@ -48,7 +149,7 @@
 <tr class="hide-linux"><td>z</td><td>IANA zone <span class="note">(e.g., America/New_York)</span></td></tr>
 <tr><td>dd</td><td>day of the month, padded to 2</td></tr>
 <tr><td>EEE</td><td>day of the week, as an abbreviate localized string <span class="note">(e.g., Wed)</span></td></tr>
-<tr><td>MM</td><td>month as a padded number</td></tr>
+<tr><td>LL</td><td>month as a padded number</td></tr>
 <tr><td>y</td><td>year, unpadded</td></tr>
 <tr><td>yy</td><td>two-digit year</td></tr>
 <tr><td>DD</td><td>localized date with abbreviated month <span class="note">(e.g., Aug 6, 2014)</span></td></tr>
@@ -60,117 +161,15 @@
 <p>More options available <a href="https://github.com/moment/luxon/blob/master/docs/formatting.md#table-of-tokens">here</a>. Note that some characters cannot be used for file names depending on your OS.</p>
 </fieldset>
 </div>
-
-<div class="option-col">
-<fieldset>
-<legend><span class="tooltip" data-tip="In the event of name conflicts, file indices will be appended like so: file.jpg, file-1.jpg, file-2.jpg, etc.">File Name</span></legend>
-<div>
-<input type="radio" id="filename-whitespace" name="option-filename" value="filename-whitespace" default checked required />
-<label for="filename-whitespace">Remove whitespace & convert to lowercase</label>
-</div>
-<div>
-<input type="radio" id="filename-template" name="option-filename" value="filename-template" />
-<label for="filename-template">Template:</label>
-<input id="filename-template-text" type="text" value="web-%f-%wx%h" default="web-%f-%wx%h" fill-blank />
-</div>
-<div>
-<input type="radio" id="filename-carry" name="option-filename" value="filename-carry" />
-<label for="filename-carry">No change</label>
-</div>
-</fieldset>
-
-<fieldset>
-<legend>Max Dimensions</legend>
-<div>
-<label for="option-dimension-width" style="display: inline-block; width: 35px;">Width:</label>
-<input type="text" id="image-maxwidth" name="option-dimension-width" maxlength="5" value="1280" default="1280" />
-<span class="note">(set blank for no limit)</span>
-</div>
-<div>
-<label for="option-dimension-height" style="display: inline-block; width: 35px;">Height:</label>
-<input type="text" id="image-maxheight" name="option-dimension-height" maxlength="5" value="1024" default="1024" />
-<span class="note">(set blank for no limit)</span>
-</div>
-</fieldset>
-
-
-<fieldset>
-<legend>Format</legend>
-<div>
-<input type="radio" id="filetype-jpg" name="option-filetype" value="filetype-jpg" default checked required />
-<label for="filetype-jpg">JPG</label><span style="margin-right: 10px">|</span><span style="margin-right: 10px">Quality:</span><input id="jpg-quality-text" type="text" maxlength="4" value="0.9" fill-blank default="0.9" style="width:40px" /><span class="note">(a decimal between 0.0 and 1.0)</span>
-</div>
-<div>
-<input type="radio" id="filetype-png" name="option-filetype" value="filetype-png" />
-<label for="filetype-png">PNG</label>
-</div>
-<div>
-<input type="radio" id="filetype-carry" name="option-filetype" value="filetype-carry" />
-<label for="filetype-carry">No change</label>
-</div>
-</fieldset>
-
-<fieldset>
-<legend><span class="tooltip" data-tip="Metadata is currently supported for JPGs and PNGs only.">Metadata</span></legend>
-<div>
-<label for="option-meta-artist" style="display: inline-block; width: 90px;">Artist:</label>
-<input type="text" id="meta-artist" name="option-meta-artist" maxlength="280" default="" />
-<span class="note">(blank ignored)</span>
-</div>
-<div>
-<label for="option-meta-title" style="display: inline-block; width: 90px;">Title:</label>
-<input type="text" id="meta-title" name="option-meta-title" maxlength="280" default="" />
-<span class="note">(blank ignored)</span>
-</div>
-<div>
-<label for="option-meta-copyright" style="display: inline-block; width: 90px;">Copyright:</label>
-<input type="text" id="meta-copyright" name="option-meta-copyright" maxlength="280" default="" />
-<span class="note">(blank ignored)</span>
-</div>
-<div>
-<label for="option-meta-date" style="display: inline-block; width: 90px;">DateTimeOriginal:</label>
-<select name="option-meta-date" id="meta-date">
-<option value="meta-date-none">None</option>
-<option value="meta-date-exif">Read JPG EXIF</option>
-<option value="meta-date-modtime">From modtime</option>
-<option value="meta-date-interpret">Interpret from filename</option>
-</select>
-</div>
-<br>
-<div class="center">
-<span class="note">(all other metadata will be removed)</span>
-</div>
-</fieldset>
 </div>
 
-<div class="option-col">
-<fieldset>
-<legend>START</legend>
-<br>
-<div id="js-off" class="center">
-<p style="color: red; font-weight: bold;">Enable Javascript to start.</p>
-</div>
-<div id="js-on" class="center hidden">
-<div>
-<input type="file" id="input-files" multiple accept="image/*">
-<div class="button" onclick="filePicker(false)">Select Files</div>
-<input type="file" id="input-dirs" webkitdirectory multiple accept="image/*">
-<div class="button" onclick="filePicker(true)">Select Folders</div>
-</div>
-<p style="font-size: 14px">Or drag files anywhere</p>
-</div>
-</fieldset>
-
-<fieldset>
-<legend>Progress</legend>
-<div style="height:80px; display:flex; flex-direction:row; justify-content:center;">
-<div style="display:flex; flex-direction:row; align-items:center;"><span id="progress-message" style="font-size: 14px;"></span><span id="spinner" class="hidden"><div class="lds-dual-ring"></div></span></div>
-</div>
-</fieldset>
-
-<div class="center social-links"><div class="img-rescale"><a href="https://github.com/joetache4/Publish-For-Web"><img src="images/github-mark-white.png" /></a></div></div>
 </div>
 
+<div id="message" class="hidden">
+<div class="message-box">
+<div style="display:flex; flex-direction:row; justify-content:center; align-items:center; margin-bottom:20px;"><span id="message-text">tmp</span><span id="spinner" class="hidden"><div class="lds-dual-ring"></div></span></div>
+<div id="message-button" class="button hollow" onclick="location.reload()">Cancel</div>
+</div>
 </div>
 
 <script src="./main.js"></script>

@@ -16,12 +16,28 @@ Only static images (JPG, PNG, WEBP, TIFF, and BMP) are supported. The page can a
 
 **`Remove whitespace & convert to lowercase`** (Default) This will remove leading and trailing spaces and replace all remaining runs of spaces with a single hyphen ("-"). Uppercase characters will change to lowercase.
 
-**`Template`** Using certain format tokens, you can define a pattern that new image file names will follow. You can, for example, join a prefix or suffix, include metadata, or generate random characters for every file name.
+**`Template`** Using certain format tokens, you can define a pattern that new image file names will follow. You can, for example, join a prefix or suffix, include metadata, or generate random characters for every file name. (Default: **web-%f-%wx%h**)
 
 > [!NOTE]
-> Some formatting tokens may introduce characters that your OS cannot handle in file names. In these events, your browser will replace the "evil" characters with underscores ("_").
+> Some formatting tokens may introduce characters that your OS or browser cannot handle in file names. In these events, your browser will replace the "evil" characters with underscores ("_").
 
 **`No change`** File name of output will match input.
+
+<div align="center">
+<h3>Format</h3>
+</div>
+
+*Choose 1 below.*
+
+**`JPG`** (Default) Output all files as JPG. *Optionally set the following.*
+
+- *Quality:* The quality of the JPG output. Acceptable range is between 0.0 and 1.0. However, ".001" is the lowest practical limit. (Default: **0.9**)
+
+**`PNG`** Output all files as PNG.
+
+**`Match Input`** Will attempt to save images in the same format as they were inputted.
+
+**`Copy Data`** Will save a copy of the image without loss of quality. (Not yet implemented)
 
 <div align="center">
 <h3>Max Dimensions</h3>
@@ -33,23 +49,9 @@ If left blank, then the corresponding dimension will have no limit.
 
 *Set any or all below.*
 
-**`Width`** (Default: 1280)
+**`Width`** (Default: **1280**)
 
-**`Height`** (Default: 1024)
-
-<div align="center">
-<h3>Format</h3>
-</div>
-
-*Choose 1 below.*
-
-**`JPG`** (Default) Output all files as JPG. *Set the following.*
-
-- *Quality:* The quality of the JPG output. Acceptable range is between 0.0 and 1.0. However, ".001" is the lowest *practical* limit. (Default: 0.9)
-
-**`PNG`** Output all files as PNG.
-
-**`No change`** Will attempt to save images in the same format as they were inputted.
+**`Height`** (Default: **1024**)
 
 <div align="center">
 <h3>Metadata</h3>
@@ -57,36 +59,17 @@ If left blank, then the corresponding dimension will have no limit.
 
 Only basic metadata is supported, including Artist, Title/Description, Copyright, and DateTimeOriginal (the date the picture was taken/made). All other metadata will be removed. Each text field has a character limit of 280 ASCII characters.
 
-How metadata is stored depends on output format, as described below.
-
-<div align="center">
-<table>
-<tr><th> Output Format </th><th> Supported Metadata </th></tr>
-<tr><td>JPG </td><td> EXIF, XMP </td></tr>
-<tr><td>PNG </td><td> EXIF, XMP </td></tr>
-<tr><td>others </td><td> not yet supported </td></tr>
-</table>
-</div>
+Metadata is supported for JPGs only.
 
 *Set any or all below.*
 
-**`Artist`** The artist or photographer who created the picture. (Default: [blank])
+**`Artist`** The artist or photographer who created the picture. (Default: *[blank]*)
 
-**`Title`** The title or description of the work. (Default: [blank])
+**`Title`** The title or description of the work. (Default: *[blank]*)
 
-**`Copyright`** Who owns the copyright. (Default: [blank])
+**`Copyright`** Who owns the copyright. (Default: *[blank]*)
 
-**`DateTimeOriginal`** The date the picture was taken or made, at millisecond granularity if possible. *Choose 1 below.*
+**`DateTimeOriginal`** The date the picture was taken or made, at millisecond granularity if possible. (Default: *[off]*)
 
 > [!WARNING]
-> Includes timezone data.
-
-- *None:* (Default) Do not set DateTimeOriginal metadata.
-
-- *Read JPG EXIF:* Will attempt to read existing EXIF DateTimeOriginal from input image.
-
-- *From old modtime:* Will set DateTimeOriginal to the modtime of the input image.
-
-- *From new modtime:* Will set DateTimeOriginal to the modtime of the output image.
-
-- *Interpret from filename:* Will set DateTimeOriginal to the date interpreted from the file name. This is done by searching a file name for a string of exactly 8 digits, followed by exactly 6 digits. There may or may not be other non-digit characters surrounding these two groups. The first group will be interpreted as a date in "YYYYMMDD" format, while the second will be interpreted as a time in "hhmmss" format.
+> `DateTimeOriginal` includes timezone data.

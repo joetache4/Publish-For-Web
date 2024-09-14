@@ -1,5 +1,6 @@
 var DateTime = luxon.DateTime;
 
+// MIME types for output formats
 const MIME = {
 	".jpg" : "image/jpeg",
 	".jpeg": "image/jpeg",
@@ -20,130 +21,141 @@ for (let n = 0; n < 256; n++) {
 	PNG_CRC_TABLE[n] = c;
 }
 
-function splitFilename(name) {
-	name = name.endsWith("/") ? name.substring(0, name.length-1) : name;
-	const lastDotIndex = name.lastIndexOf(".");
-	const lastSlashIndex = name.lastIndexOf("/");
 
-	const dir      = lastSlashIndex !== -1 ? name.substring(0, lastSlashIndex+1) : "";
-	const basename = lastDotIndex   !== -1 ? name.substring(lastSlashIndex+1, lastDotIndex) : name.substring(lastSlashIndex+1);
-	const ext      = lastDotIndex   !== -1 ? name.substring(lastDotIndex     ) : "";
-	return [dir, basename, ext];
-}
 
-function safeParseInt(str, def) {
-  const parsedValue = parseInt(str, 10);
-  return isNaN(parsedValue) ? def : parsedValue;
-}
 
-function safeParseFloat(str, def) {
-  const parsedValue = parseFloat(str, 10);
-  return isNaN(parsedValue) ? def : parsedValue;
-}
 
-function clamp(num, min, max) {
-	return Math.min(Math.max(num, min), max);
-}
 
-function numberToBytes(num, pad) {
-	if (num >= 2**(8*pad)) {
-		throw new Error("Overflow");
+
+
+
+async function getOldMetadata(file) {
+	let dateTimeOriginal   = "";
+	let timeZoneOffset     = "";
+	let subSecTimeOriginal = "";
+
+	const data  = await file.arrayBuffer();
+	const bytes = new Uint8Array(data);
+	// find EXIF header
+	let exifStart = null;
+	for (let i = 6; i < 30; i++) {
+		if (bytes[i] == 0x45 && bytes[i+1] == 0x78 && bytes[i+2] == 0x69 && bytes[i+3] == 0x66 && bytes[i+4] == 0x00 && bytes[i+5] == 0x00) { // EXIF header
+			exifStart = i+6; // start of the TIFF header which all offsets are relative to
+			break;
+		}
 	}
-	const bytes = [];
-	for (let i = 0; i < pad; i++) {
-		bytes[i] = (num >>> (8*(pad - 1 - i))) & 0xFF;
+	if (exifStart) {
+		// search for link to SubIFD
+		// TODO fails on Intel byte order
+		// TODO converting *255**n to <<8*n caused an error
+		const IFD0Offset = bytes[exifStart+4]*255**3 + bytes[exifStart+5]*255**2 + bytes[exifStart+6]*255**1 + bytes[exifStart+7]*255**0;
+		const numberOfIFD0Entries = bytes[exifStart+IFD0Offset]*255 + bytes[exifStart+IFD0Offset+1] - 1; // subtract link to IFD1
+		for (let i = 0; i < numberOfIFD0Entries; i++) {
+			let IFD0EntryStart = exifStart + IFD0Offset + 2 + 12*i;
+			if (bytes[IFD0EntryStart] == 0x87 && bytes[IFD0EntryStart+1] == 0x69) {
+				const subIFDOffset = bytes[IFD0EntryStart+8]*255**3 + bytes[IFD0EntryStart+9]*255**2 + bytes[IFD0EntryStart+10]*255**1 + bytes[IFD0EntryStart+11]*255**0;
+				const numberOfSubIFDEntries = bytes[exifStart + subIFDOffset]*255 + bytes[exifStart + subIFDOffset + 1] - 1;
+				// search for DateTimeOriginal, TimeZoneOffset, and SubSecTimeOriginal entries inside SubIFD
+				// store each value as a string
+				for (let j = 0; j < numberOfSubIFDEntries; j++) {
+					let subIFDEntryStart = exifStart + subIFDOffset + 2 + 12*j;
+					if (dateTimeOriginal === "" && bytes[subIFDEntryStart] == 0x90 && bytes[subIFDEntryStart+1] == 0x03) {
+						const dataOffset = bytes[subIFDEntryStart+8]*255**3 + bytes[subIFDEntryStart+9]*255**2 + bytes[subIFDEntryStart+10]*255**1 + bytes[subIFDEntryStart+11]*255**0;
+						for (let k = exifStart + dataOffset; k < exifStart + dataOffset + 19; k++)
+							dateTimeOriginal += String.fromCharCode(bytes[k]);
+					} else if (timeZoneOffset === "" && bytes[subIFDEntryStart] == 0x88 && bytes[subIFDEntryStart+1] == 0x2A) {
+						timeZoneOffset = (bytes[subIFDEntryStart+8] & 0x8000 ? -1 : 1) * ((bytes[subIFDEntryStart+8] & 0x7FFF)*255 + bytes[subIFDEntryStart+9]);
+						timeZoneOffset = "" + timeZoneOffset;
+					} else if (subSecTimeOriginal === "" && bytes[subIFDEntryStart] == 0x92 && bytes[subIFDEntryStart+1] == 0x91) {
+						const dataSize = bytes[IFD0EntryStart+4]*255**3 + bytes[IFD0EntryStart+5]*255**2 + bytes[IFD0EntryStart+6]*255**1 + bytes[IFD0EntryStart+7]*255**0;
+						if (dataSize <= 4) {
+							for (let k = subIFDEntryStart + 8; k < subIFDEntryStart + 8 + dataSize; k++) subSecTimeOriginal += String.fromCharCode(bytes[k]);
+						} else {
+							const dataOffset = bytes[subIFDEntryStart+8]*255**3 + bytes[subIFDEntryStart+9]*255**2 + bytes[subIFDEntryStart+10]*255**1 + bytes[subIFDEntryStart+11]*255**0;
+							for (let k = exifStart + dataOffset; k < exifStart + dataOffset + dataSize; k++) subSecTimeOriginal += String.fromCharCode(bytes[k]);
+						}
+					}
+					if (dateTimeOriginal && timeZoneOffset && subSecTimeOriginal) break;
+				}
+
+				break;
+			}
+		}
+		// parse the date
+		if (dateTimeOriginal) {
+			const match = dateTimeOriginal.match(/(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})/);
+			if (match) {
+				dateTimeOriginal = new Date(
+					match[1],
+					parseInt(match[2])-1,
+					match[3],
+					match[4],
+					match[5],
+					match[6],
+					subSecTimeOriginal
+				);
+				console.log("found exif date");
+				return {
+					dateTimeOriginal   : dateTimeOriginal,
+					timeZoneOffset     : timeZoneOffset,
+					subSecTimeOriginal : subSecTimeOriginal,
+				}
+			}
+		}
 	}
-	return bytes;
+	return {};
 }
 
-function pngCRC(bytes, c = 0xffffffff) {
-	for (let n = 0; n < bytes.length; n++) {
-		c = PNG_CRC_TABLE[(c ^ bytes[n]) & 0xff] ^ ((c>>8)&0xFFFFFF);
+function getDateTaken(file, metadata) {
+	// 1. Look for Date in EXIF
+
+	if (metadata.dateTimeOriginal) {
+		return {
+			dateTimeOriginal   : metadata.dateTimeOriginal,
+			timeZoneOffset     : metadata.timeZoneOffset,     // can be undefined
+			subSecTimeOriginal : metadata.subSecTimeOriginal,
+		}
 	}
-	return c ^ 0xffffffff;
-}
 
-/*
-alert(numberToBytes(pngCRC([0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x13, 0x88, 0x00, 0x00, 0x13, 0x88, 0x08, 0x02, 0x00, 0x00, 0x00]), 4));
-alert([0xd2, 0xfa, 0x10, 0x9c]); // IHDR CRC
-let crc = pngCRC([0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x13, 0x88, 0x00, 0x00]);
-crc     = pngCRC([0x13, 0x88, 0x08, 0x02, 0x00, 0x00, 0x00], crc ^ 0xffffffff);
-alert(numberToBytes(crc, 4));
-alert(numberToBytes(pngCRC([0x49, 0x45, 0x4e, 0x44]), 4));
-alert([0xae, 0x42, 0x60, 0x82]); // IEND CRC
-//*/
+	// 2. Look for Date in file name
 
-function interpretDateFromFilename(file) {
+	let dateTimeOriginal;
+	let timeZoneOffset;
+	let subSecTimeOriginal;
+
 	const [dir, basename, ext] = splitFilename(file.name);
-	const found = basename.replaceAll(/[^\d]/g, " ").trim().match(/^(\d{8}) *(\d{6})$/); // TODO some filenames include a final triplet (e.g., _123) for milliseconds
+	const found = basename.replaceAll(/[^\d]/g, " ").trim().match(/^(\d{8}) *(\d{6}) *(\d{3})?$/);
 	if (found !== null) {
-		const dayNumber = found[1], timeNumber = found[2];
+		const dayNumber = found[1], timeNumber = found[2], msNumber = found[3] || "0";
 		const year   = parseInt(dayNumber.substring(0, 4));
 		const month  = parseInt(dayNumber.substring(4, 6)) - 1; // Months are 0-indexed
 		const day    = parseInt(dayNumber.substring(6, 8));
 		const hour   = parseInt(timeNumber.substring(0, 2));
 		const minute = parseInt(timeNumber.substring(2, 4));
 		const second = parseInt(timeNumber.substring(4, 6));
-		date = new Date(year, month, day, hour, minute, second);
-		return date;
-	}
-	return null;
-}
-
-function saveAs(content, filename) {
-	const [dir, basename, ext] = splitFilename(filename);
-	const mime = MIME[ext];
-	console.log("downloading: " + mime);
-	const file = new File([content], filename, { type: mime });
-	const url = URL.createObjectURL(file);
-	const link = document.createElement("a");
-	link.href = url;
-	link.download = filename;
-	link.click(); // TODO? only download zip - certain characters, including %, will be replaced with _ unless the images are in a .zip
-	URL.revokeObjectURL(url);
-}
-
-function getRadioValue(groupName) {
-	const radioButtons = document.getElementsByName(groupName);
-	for (let i = 0; i < radioButtons.length; i++) {
-		if (radioButtons[i].checked) {
-			return radioButtons[i].value;
+		const ms     = parseInt(msNumber);
+		dateTimeOriginal   = new Date(year, month, day, hour, minute, second);
+		timeZoneOffset     = -dateTimeOriginal.getTimezoneOffset(); // zero is a valid value
+		subSecTimeOriginal =  dateTimeOriginal.getMilliseconds();
+		console.log("found filename date");
+		return {
+			dateTimeOriginal   : dateTimeOriginal,
+			timeZoneOffset     : timeZoneOffset,
+			subSecTimeOriginal : subSecTimeOriginal,
 		}
 	}
-	return null;
-}
 
-function getInputOrDefault(id) {
-	const tag = document.getElementById(id);
-	const val = tag.value || tag.getAttribute("default");
-	return val;
-}
+	// 3. Get Date from Last Modified Time
 
-function getDatePickerDateString(localDate=Date.now()) {
-	if (typeof localDate === "number")
-		localDate = new Date(localDate);
-	const offsetMs = -localDate.getTimezoneOffset() * 60 * 1000;
-	localDate.setTime(localDate.getTime() + offsetMs);
-	localDate = localDate.toISOString().slice(0, 19);
-	return localDate;
-}
-
-function getXMPDateString(localDate=Date.now(), timeZoneOffset=null) {
-	if (typeof localDate === "number")
-		localDate = new Date(localDate);
-	if (timeZoneOffset == null || timeZoneOffset == "")
-		timeZoneOffset = -localDate.getTimezoneOffset(); //minutes
-	let date = getDatePickerDateString(localDate);
-	const H = ("" + Math.floor(Math.abs(timeZoneOffset)/60)).padStart(2, "0");
-	const M = ("" + Math.abs(timeZoneOffset)%60).padStart(2, "0");
-	date += (timeZoneOffset < 0 ? "-" : "+") + H + ":" + M;
-	return date;
-}
-
-function getEXIFDateString(localDate=Date.now()) {
-	let date = getDatePickerDateString(localDate);
-	date = date.slice(0,19).replaceAll("-", ":").replace("T", " ");
-	return date;
+	dateTimeOriginal   = new Date(file.lastModified);
+	timeZoneOffset     = -dateTimeOriginal.getTimezoneOffset();
+	subSecTimeOriginal =  dateTimeOriginal.getMilliseconds();
+	console.log("using last modified date");
+	return {
+		dateTimeOriginal   : dateTimeOriginal,
+		timeZoneOffset     : timeZoneOffset,
+		subSecTimeOriginal : subSecTimeOriginal,
+	}
 }
 
 
@@ -156,14 +168,21 @@ function getEXIFDateString(localDate=Date.now()) {
 
 
 
-function* getNewFilename(file, width, height) {
+function* getNewFilename(file, width, height, oldMetadata) {
 	const val = getRadioValue("option-filename");
 	let [dir, basename, ext] = splitFilename(file.webkitRelativePath || file.name);
 
 	if (val === "filename-whitespace") {
 		basename = basename.trim().toLowerCase().replaceAll(/ +/g, "-");
 	} else if (val === "filename-template") {
-		const template = getInputOrDefault("filename-template-text");
+		let template = getInputOrDefault("filename-template-text");
+
+		// default params
+		template = template.replaceAll(/(?<!%)%(?![fFGxwhdDrR%])/g, "%%"); // lone % is taken literally
+		template = template.replaceAll(/%d(?!{)/g, "%d{yyyyLLdd_HHmmss}"); // default Date format
+		template = template.replaceAll(/%r(?!{)/g, "%r{4}");               // default random count
+		template = template.replaceAll(/%R(?!{)/g, "%R{4}");               // default random count
+
 		let out = "";
 		let command = "", arg = "";
 
@@ -182,10 +201,12 @@ function* getNewFilename(file, width, height) {
 							out += characters.charAt(randomIndex);
 						}
 					} else if (command === "d") {
-						// TODO get date according the following priority: EXIF DateTimeOriginal, interpretDateFromFilename, file.lastModified
-						out += DateTime.fromISO(new Date(file.lastModified).toISOString()).toFormat(arg);
+						let tmp = getDateTaken(file, oldMetadata).dateTimeOriginal;
+						tmp = DateTime.fromJSDate(tmp);
+						tmp = tmp.toFormat(arg);
+						out += tmp;
 					} else if (command === "D") {
-						out += DateTime.fromISO(new Date().toISOString()).toFormat(arg);
+						out += DateTime.now().toFormat(arg);
 					}
 					command = "";
 					arg = "";
@@ -238,10 +259,9 @@ function* getNewFilename(file, width, height) {
 	}
 	let format = getNewFormat(file);
 	if (format == "image/jpeg") {
-		ext = ".jpg";
-	} else if (format == "image/png") {
-		ext = ".png";
+		format = "image/jpg";
 	}
+	ext = "." + format.substring(6);
 
 	for (let i = 0; ; i++) {
 		if (i)
@@ -282,13 +302,18 @@ function getNewFormat(file) {
 		return "image/jpeg";
 	} else if (val === "filetype-png") {
 		return "image/png";
+	} else if (val === "filetype-webp") {
+		if (/^((?!chrome|android).)*safari/i.test(navigator.userAgent))
+			throw new Error("WEBP not supported"); // safari does not support webp
+		return "image/webp";
 	} else {
-		const [dir, basename, ext] = splitFilename(file.name); //drag-and-dropped files don't have a type for some reason, need to look at file ext
+		// match file type of input
+		const [dir, basename, ext] = splitFilename(file.name); //drag-and-dropped files sometimes don't have a type, need to look at file ext
 		let mime = MIME[ext];
 		if (mime === undefined) {
 			mime = "image/jpeg";
 		}
-		if (mime === "image/webp" && /^((?!chrome|android).)*safari/i.test(navigator.userAgent)) { // safari does not support webp
+		if (mime === "image/webp" && /^((?!chrome|android).)*safari/i.test(navigator.userAgent)) {
 			mime = "image/jpeg";
 		}
 		return mime;
@@ -301,95 +326,22 @@ function getNewQuality() {
 	return quality;
 }
 
-async function getNewMetadata(file) {
+function getNewMetadata(file, metadata) {
 	const artist    = document.getElementById("meta-artist").value;
 	const title     = document.getElementById("meta-title").value;
 	const copyright = document.getElementById("meta-copyright").value;
-	const dateTimeOriginalSelection = document.getElementById("meta-date").value;
-	let dateTimeOriginal   = "";
-	let timeZoneOffset     = "";
-	let subSecTimeOriginal = "";
-	if (dateTimeOriginalSelection == "meta-date-exif") {
-		const data  = await file.arrayBuffer();
-		const bytes = new Uint8Array(data);
-		// find EXIF header
-		let exifStart = null;
-		for (let i = 6; i < 30; i++) {
-			if (bytes[i] == 0x45 && bytes[i+1] == 0x78 && bytes[i+2] == 0x69 && bytes[i+3] == 0x66 && bytes[i+4] == 0x00 && bytes[i+5] == 0x00) { // EXIF header
-				exifStart = i+6; // start of the TIFF header which all offsets are relative to
-				break;
-			}
-		}
-		if (exifStart) {
-			// search for link to SubIFD
-			const IFD0Offset = bytes[exifStart+4]*256**3 + bytes[exifStart+5]*256**2 + bytes[exifStart+6]*256**1 + bytes[exifStart+7]*256**0;
-			const numberOfIFD0Entries = bytes[exifStart+IFD0Offset]*256 + bytes[exifStart+IFD0Offset+1] - 1; // subtract link to IFD1
-			for (let i = 0; i < numberOfIFD0Entries; i++) {
-				let IFD0EntryStart = exifStart + IFD0Offset + 2 + 12*i;
-				if (bytes[IFD0EntryStart] == 0x87 && bytes[IFD0EntryStart+1] == 0x69) {
-					const subIFDOffset = bytes[IFD0EntryStart+8]*256**3 + bytes[IFD0EntryStart+9]*256**2 + bytes[IFD0EntryStart+10]*256**1 + bytes[IFD0EntryStart+11]*256**0;
-					const numberOfSubIFDEntries = bytes[exifStart + subIFDOffset]*256 + bytes[exifStart + subIFDOffset + 1] - 1;
-					// search for DateTimeOriginal, TimeZoneOffset, and SubSecTimeOriginal entries inside SubIFD
-					// store each value as a string
-					for (let j = 0; j < numberOfSubIFDEntries; j++) {
-						let subIFDEntryStart = exifStart + subIFDOffset + 2 + 12*j;
-						if (dateTimeOriginal === "" && bytes[subIFDEntryStart] == 0x90 && bytes[subIFDEntryStart+1] == 0x03) {
-							const dataOffset = bytes[subIFDEntryStart+8]*256**3 + bytes[subIFDEntryStart+9]*256**2 + bytes[subIFDEntryStart+10]*256**1 + bytes[subIFDEntryStart+11]*256**0;
-							for (let k = exifStart + dataOffset; k < exifStart + dataOffset + 19; k++)
-								dateTimeOriginal += String.fromCharCode(bytes[k]);
-						} else if (timeZoneOffset === "" && bytes[subIFDEntryStart] == 0x88 && bytes[subIFDEntryStart+1] == 0x2A) {
-							timeZoneOffset = (bytes[subIFDEntryStart+8] & 0x8000 ? -1 : 1) * ((bytes[subIFDEntryStart+8] & 0x7FFF)*256 + bytes[subIFDEntryStart+9]);
-							timeZoneOffset = "" + timeZoneOffset;
-						} else if (subSecTimeOriginal === "" && bytes[subIFDEntryStart] == 0x92 && bytes[subIFDEntryStart+1] == 0x91) {
-							const dataSize = bytes[IFD0EntryStart+4]*256**3 + bytes[IFD0EntryStart+5]*256**2 + bytes[IFD0EntryStart+6]*256**1 + bytes[IFD0EntryStart+7]*256**0;
-							if (dataSize <= 4) {
-								for (let k = subIFDEntryStart + 8; k < subIFDEntryStart + 8 + dataSize; k++) subSecTimeOriginal += String.fromCharCode(bytes[k]);
-							} else {
-								const dataOffset = bytes[subIFDEntryStart+8]*256**3 + bytes[subIFDEntryStart+9]*256**2 + bytes[subIFDEntryStart+10]*256**1 + bytes[subIFDEntryStart+11]*256**0;
-								for (let k = exifStart + dataOffset; k < exifStart + dataOffset + dataSize; k++) subSecTimeOriginal += String.fromCharCode(bytes[k]);
-							}
-						}
-						if (dateTimeOriginal && timeZoneOffset && subSecTimeOriginal) break;
-					}
-
-					break;
-				}
-			}
-			// parse the date
-			if (dateTimeOriginal) {
-				const match = dateTimeOriginal.match(/(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})/);
-				if (match) {
-					dateTimeOriginal = new Date(
-						match[1],
-						parseInt(match[2])-1,
-						match[3],
-						match[4],
-						match[5],
-						match[6],
-						subSecTimeOriginal
-					);
-				}
-			}
-		}
-	} else if (dateTimeOriginalSelection == "meta-date-modtime") {
-		dateTimeOriginal   = new Date(file.lastModified);
-		timeZoneOffset     = "" + -dateTimeOriginal.getTimezoneOffset(); // zero is a valid value
-		subSecTimeOriginal = "" +  dateTimeOriginal.getMilliseconds();
-	} else if (dateTimeOriginalSelection == "meta-date-interpret") {
-		dateTimeOriginal   = interpretDateFromFilename(file);
-		if (dateTimeOriginal) {
-			timeZoneOffset     = "" + -dateTimeOriginal.getTimezoneOffset();
-			subSecTimeOriginal = "" +  dateTimeOriginal.getMilliseconds();
-		}
+	const checked = document.getElementById("meta-date").checked;
+	let dateTaken   = {};
+	if (checked) {
+		dateTaken = getDateTaken(file, metadata);
 	}
-
 	return {
 		artist             : artist,
 		title              : title,
 		copyright          : copyright,
-		dateTimeOriginal   : dateTimeOriginal,
-		timeZoneOffset     : timeZoneOffset,
-		subSecTimeOriginal : subSecTimeOriginal
+		dateTimeOriginal   : dateTaken.dateTimeOriginal,
+		timeZoneOffset     : dateTaken.timeZoneOffset,
+		subSecTimeOriginal : dateTaken.subSecTimeOriginal,
 	};
 }
 
@@ -407,7 +359,6 @@ async function getNewMetadata(file) {
 // https://web.archive.org/web/20131018091152/http://exif.org/Exif2-2.PDF
 // http://www.libpng.org/pub/png/spec/1.2/PNG-Chunks.html
 // https://www.w3.org/TR/png-3/#eXIf
-// https://archimedespalimpsest.net/Documents/External/XMP/XMPSpecificationPart3.pdf
 function createEXIF(metadata) {
 	if (!Object.values(metadata).some(a => a)) {
 		return null;
@@ -461,7 +412,7 @@ function createEXIF(metadata) {
 	// DateTimeOriginal
 	const EXIFSubIFD = [];
 	if (metadata.dateTimeOriginal) {
-		let localDate = getEXIFDateString(metadata.dateTimeOriginal);
+		let localDate = makeEXIFDateString(metadata.dateTimeOriginal);
 		const bytes = Array.from(encoder.encode(localDate));
 		EXIFSubIFD.push({
 			tag    : [0x90, 0x03],
@@ -591,11 +542,10 @@ async function insertMetadata(blob, metadata) {
 		return blob;
 	}
 
-	const xmp = createXMP(metadata);
-
 	const dataToCombine = [];
 	if (blob.type == "image/jpeg") {
 		// insert after JFIF/APP0 (0xFFE0) and just before the quantization table (0xFFDB)
+		// TODO there might be a JFIF extension APP0 marker segment with a thumbnail
 		const start = await blob.slice(0, 30).bytes();
 		let i;
 		for (i = 2; i < start.length-1; i++)
@@ -621,18 +571,6 @@ async function insertMetadata(blob, metadata) {
 		    crc = pngCRC([0x65, 0x58, 0x49, 0x66]);
 			crc = pngCRC(exif, crc ^ 0xffffffff);
 		dataToCombine.push(numberToBytes(crc, 4));                // CRC
-		// XMP
-		dataToCombine.push(numberToBytes(xmp.length+22, 4));      // Chunk length
-		dataToCombine.push([0x69, 0x54, 0x58, 0x74]);             // XMP chunk type field
-		dataToCombine.push([0x58, 0x4D, 0x4C, 0x3A, 0x63, 0x6F, 0x6D, 0x2E, 0x61, 0x64, 0x6F, 0x62, 0x65, 0x2E, 0x78, 0x6D, 0x70]); // "XML:com.adobe.xmp"
-		dataToCombine.push([0x00, 0x00, 0x00, 0x00, 0x00]);       // Compression options
-		dataToCombine.push(xmp);                                  // XMP metadata
-		    crc = pngCRC([0x69, 0x54, 0x58, 0x74]);
-			crc = pngCRC([0x58, 0x4D, 0x4C, 0x3A, 0x63, 0x6F, 0x6D, 0x2E, 0x61, 0x64, 0x6F, 0x62, 0x65, 0x2E, 0x78, 0x6D, 0x70], crc ^ 0xffffffff);
-			crc = pngCRC([0x00, 0x00, 0x00, 0x00, 0x00], crc ^ 0xffffffff);
-			crc = pngCRC(xmp, crc ^ 0xffffffff);
-		dataToCombine.push(numberToBytes(crc, 4));                // CRC
-
 		const data = await blob.slice(33).bytes();                // Image data
 		dataToCombine.push(data);
 	}
@@ -671,18 +609,19 @@ function processFiles(f) {
 
 function processSingle(f) {
 	console.log("beginning file: " + f.name);
-	let blob, width, height;
+	let blob, width, height, oldMetadata;
 	return resizeImage(f)
 	.then(resolved => {
-		const [b, w, h] = resolved;
-		blob = b, width = w, height = h;
-		return getNewMetadata(f);
+		blob = resolved.blob, width = resolved.width, height = resolved.height;
+		return getOldMetadata(f);
 	})
-	.then(metadata => {
-		return insertMetadata(blob, metadata);
+	.then(m => {
+		oldMetadata = m;
+		const newMetadata = getNewMetadata(f, oldMetadata);
+		return insertMetadata(blob, newMetadata);
 	})
 	.then(metaBlob => {
-		const newName    = getNewFilename(f, width, height).next().value;
+		const newName = getNewFilename(f, width, height, oldMetadata).next().value;
 
 		console.log("renaming to: " + newName);
 		saveAs(metaBlob, newName);
@@ -698,33 +637,39 @@ function processMultiple(files) {
 	const zip = new JSZip();
 	const usedFilenames = new Set();
 
-	const progress = document.getElementById("progress-message");
+	const message = document.getElementById("message");
+	const messageText = document.getElementById("message-text");
+	const messageButton = document.getElementById("message-button");
 	const spinner = document.getElementById("spinner");
 
 	if (!spinner.classList.contains("hidden")) return; // another job is running
 
+	let error = false;
+
 	console.log("input: " + files.length);
-	progress.textContent = "Reading files...";
+	messageText.textContent = "Reading files...";
 	spinner.classList.remove("hidden");
+	message.classList.remove("hidden");
 
 	Promise.all(
 		Array.from(files).map(f => {
 
 			console.log("beginning file: " + f.name);
-			let blob, width, height;
+			let blob, width, height, oldMetadata;
 			return resizeImage(f)
 			.then(resolved => {
-				const [b, w, h] = resolved;
-				blob = b, width = w, height = h;
-				return getNewMetadata(f);
+				blob = resolved.blob, width = resolved.width, height = resolved.height;
+				return getOldMetadata(f);
 			})
-			.then(metadata => {
-				return insertMetadata(blob, metadata);
+			.then(m => {
+				oldMetadata = m;
+				const newMetadata = getNewMetadata(f, oldMetadata);
+				return insertMetadata(blob, newMetadata);
 			})
 			.then(metaBlob => {
 				// get unique file name
 				let newName;
-				for(newName of getNewFilename(f, width, height)) {
+				for(newName of getNewFilename(f, width, height, oldMetadata)) {
 					if (!usedFilenames.has(newName)) {
 						usedFilenames.add(newName);
 						break;
@@ -733,78 +678,99 @@ function processMultiple(files) {
 
 				console.log("adding file: " + newName);
 				zip.file(newName, metaBlob);
+			})
+			.catch(err => {
+				console.log("error: " + f.name);
+				console.log(err);
+				error = true;
 			});
 		})
 	)
 	.then(() => {
 
 		console.log("generating zip");
-		progress.textContent = "Zipping files...";
+		messageText.textContent = "Zipping files...";
 		zip.generateAsync({ type: "blob", compression: "STORE" })
 		.then(content => {
 			saveAs(content, "images.zip");
-			progress.textContent = "Your new images were downloaded.";
+			if (error) {
+				messageText.textContent = "Some images failed. Make sure they are all valid images.";
+			} else {
+				messageText.textContent = "Your new images were downloaded.";
+			}
 			spinner.classList.add("hidden");
+			messageButton.textContent = "OK";
 		});
 	})
 	.catch(err => {
-		progress.textContent = "There was an error reading your files. Make sure they are all valid images.";
+		messageText.textContent = "" + err;
 		spinner.classList.add("hidden");
+		messageButton.textContent = "OK";
 		console.log(err);
 	});
 }
 
+// images need to be decoded to remove metadata
 function resizeImage(file) {
 	return new Promise((resolve, reject) => {
 		const reader = new FileReader();
 		reader.onload = (event) => {
+
 			const img = new Image();
 			img.onload = () => {
 				const [newWidth, newHeight] = getNewDimensions(img);
 
 				const canvas = document.createElement("canvas");
-				const fcanvas = new fabric.Canvas(canvas, {
-					imageSmoothingEnabled: false,
-					enableRetinaScaling: false,
-				});
-				fcanvas.setWidth(newWidth);
-				fcanvas.setHeight(newHeight);
+				if (img.width != newWidth || img.height != newHeight) {
+					const fcanvas = new fabric.Canvas(canvas, {
+						imageSmoothingEnabled: false,
+						enableRetinaScaling: false,
+					});
+					fcanvas.setWidth(newWidth);
+					fcanvas.setHeight(newHeight);
 
-				const lanczosFilter = new fabric.Image.filters.Resize({
-					scaleX: 1,
-					scaleY: 1,
-					resizeType: "lanczos",
-					lanczosLobes: 3,
-				});
+					const lanczosFilter = new fabric.Image.filters.Resize({
+						scaleX: 1,
+						scaleY: 1,
+						resizeType: "lanczos",
+						lanczosLobes: 3,
+					});
 
-				const fimg = new fabric.Image(img).scale(newWidth / img.width);
-				const r = fcanvas.getRetinaScaling();
-				lanczosFilter.scaleX = lanczosFilter.scaleY = fimg.scaleX * r;
-				fimg.filters = [lanczosFilter];
-				fimg.applyFilters();
-				fcanvas.add(fimg);
-				fcanvas.renderAll();
-
+					const fimg = new fabric.Image(img).scale(newWidth / img.width);
+					const r = fcanvas.getRetinaScaling();
+					lanczosFilter.scaleX = lanczosFilter.scaleY = fimg.scaleX * r;
+					fimg.filters = [lanczosFilter];
+					fimg.applyFilters();
+					fcanvas.add(fimg);
+					fcanvas.renderAll();
+				} else {
+					canvas.width = img.width;
+					canvas.height = img.height;
+					const ctx = canvas.getContext("2d");
+					ctx.drawImage(img, 0, 0);
+				}
 				const newFormat  = getNewFormat(file);
 				const newQuality = getNewQuality(file) ** (1.0/6); // take root b/c lanczos quality seems to increase exponentially
 
 				console.log("converting image: " + newFormat + " " + newQuality);
 				canvas.toBlob(blob => {
-					resolve([blob, newWidth, newHeight]);
-				}, newFormat, newQuality);
+					resolve({
+						blob      : blob, 
+						newWidth  : newWidth, 
+						newHeight : newHeight,
+					});
+				}, newFormat, newQuality); // TODO standard PNG compression isn't the best
 			};
 			img.onerror = (error) => {
 				reject(error);
 			};
 
-			console.log("interpretting image");
 			img.src = event.target.result;
 		};
 		reader.onerror = (error) => {
 			reject(error);
 		};
 
-		console.log("reading file");
 		reader.readAsDataURL(file);
 	});
 }
@@ -883,6 +849,107 @@ document.addEventListener("drop", (event) => {
 
 
 
+function splitFilename(name) {
+	name = name.endsWith("/") ? name.substring(0, name.length-1) : name;
+	const lastDotIndex = name.lastIndexOf(".");
+	const lastSlashIndex = name.lastIndexOf("/");
+
+	const dir      = lastSlashIndex !== -1 ? name.substring(0, lastSlashIndex+1) : "";
+	const basename = lastDotIndex   !== -1 ? name.substring(lastSlashIndex+1, lastDotIndex) : name.substring(lastSlashIndex+1);
+	const ext      = lastDotIndex   !== -1 ? name.substring(lastDotIndex     ) : "";
+	return [dir, basename, ext];
+}
+
+function safeParseInt(str, def) {
+  const parsedValue = parseInt(str, 10);
+  return isNaN(parsedValue) ? def : parsedValue;
+}
+
+function safeParseFloat(str, def) {
+  const parsedValue = parseFloat(str, 10);
+  return isNaN(parsedValue) ? def : parsedValue;
+}
+
+function clamp(num, min, max) {
+	return Math.min(Math.max(num, min), max);
+}
+
+function numberToBytes(num, pad) {
+	if (num >= 2**(8*pad)) {
+		throw new Error("Overflow");
+	}
+	const bytes = [];
+	for (let i = 0; i < pad; i++) {
+		bytes[i] = (num >>> (8*(pad - 1 - i))) & 0xFF;
+	}
+	return bytes;
+}
+
+function pngCRC(bytes, crc = 0xffffffff) {
+	for (let n = 0; n < bytes.length; n++) {
+		crc = PNG_CRC_TABLE[(crc ^ bytes[n]) & 0xff] ^ ((crc>>8)&0xFFFFFF);
+	}
+	return crc ^ 0xffffffff;
+}
+
+/*
+alert(numberToBytes(pngCRC([0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x13, 0x88, 0x00, 0x00, 0x13, 0x88, 0x08, 0x02, 0x00, 0x00, 0x00]), 4));
+alert([0xd2, 0xfa, 0x10, 0x9c]); // IHDR CRC
+let crc = pngCRC([0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x13, 0x88, 0x00, 0x00]);
+crc     = pngCRC([0x13, 0x88, 0x08, 0x02, 0x00, 0x00, 0x00], crc ^ 0xffffffff);
+alert(numberToBytes(crc, 4));
+alert(numberToBytes(pngCRC([0x49, 0x45, 0x4e, 0x44]), 4));
+alert([0xae, 0x42, 0x60, 0x82]); // IEND CRC
+//*/
+
+function saveAs(content, filename) {
+	const [dir, basename, ext] = splitFilename(filename);
+	const mime = MIME[ext];
+	console.log("downloading: " + mime);
+	const file = new File([content], filename, { type: mime });
+	const url = URL.createObjectURL(file);
+	const link = document.createElement("a");
+	link.href = url;
+	link.download = filename;
+	link.click(); // TODO? only download zip - certain characters, including %, will be replaced with _ unless the images are in a .zip. Also, WEBP images will sometimes open in a new tab when downloaded.
+	URL.revokeObjectURL(url);
+}
+
+function getRadioValue(groupName) {
+	const radioButtons = document.getElementsByName(groupName);
+	for (let i = 0; i < radioButtons.length; i++) {
+		if (radioButtons[i].checked) {
+			return radioButtons[i].value;
+		}
+	}
+	return null;
+}
+
+function getInputOrDefault(id) {
+	const tag = document.getElementById(id);
+	const val = tag.value || tag.getAttribute("default");
+	return val;
+}
+
+function makeEXIFDateString(date=Date.now()) {
+	date = new Date(date);
+	const offsetMs = -date.getTimezoneOffset() * 60 * 1000;
+	date.setTime(date.getTime() + offsetMs);
+	date = date.toISOString().slice(0, 19);
+	date = date.replaceAll("-", ":").replace("T", " ");
+	return date;
+}
+
+
+
+
+
+
+
+
+
+
+
 function resetInputs() {
 	document.querySelectorAll("input").forEach(tag => {
 		if (tag.hasAttribute("default")) {
@@ -893,9 +960,41 @@ function resetInputs() {
 			}
 		}
 	});
-	document.getElementById("jpg-quality-text").disabled = false;
-	document.getElementById("meta-date").value = "meta-date-none";
+	document.getElementById("meta-date").checked = false;
+	resetEnabled();
 }
+
+function resetEnabled() {
+	document.getElementById("filename-template-text").disabled = getRadioValue("option-filename") != "filename-template";
+
+	const filetype = getRadioValue("option-filetype");
+	const w = document.getElementById("image-maxwidth");
+	const h = document.getElementById("image-maxheight");
+	document.getElementById("jpg-quality-text").disabled = !["filetype-jpg", "filetype-webp", "filetype-match"].includes(filetype);
+	//w.disabled = h.disabled = filetype == "filetype-copydata";
+}
+
+document.querySelectorAll("input[type='radio']").forEach(tag => {
+	tag.addEventListener("input", (event) => {
+		resetEnabled();
+	});
+});
+
+(function() {
+	const dimObserver = new MutationObserver((mutations) => {
+		mutations.forEach((mutation) => {
+			if (mutation.attributeName === "disabled") {
+				if (mutation.target.disabled) {
+					mutation.target.value = "";
+				} else {
+					mutation.target.value = mutation.target.getAttribute("default");
+				}
+			}
+		});
+	});
+	dimObserver.observe(document.getElementById("image-maxwidth"), { attributes: true });
+	dimObserver.observe(document.getElementById("image-maxheight"), { attributes: true });
+})();
 
 document.addEventListener("keydown", (event) => {
 	if (event.key === "Escape") {
@@ -903,18 +1002,7 @@ document.addEventListener("keydown", (event) => {
 	}
 });
 
-document.querySelectorAll("input[name='option-filename']").forEach(tag => {
-	tag.addEventListener("input", (event) => {
-		document.getElementById("filename-template-text").disabled = (event.target.value !== "filename-template");
-	});
-});
-
-document.querySelectorAll("input[name='option-filetype']").forEach(tag => {
-	tag.addEventListener("input", (event) => {
-		document.getElementById("jpg-quality-text").disabled = (event.target.value !== "filetype-jpg");
-	});
-});
-
+// TODO don't set cursor to end if a bad char is inputted
 document.getElementById("filename-template-text").addEventListener("input", (event) => {
 	event.target.value = event.target.value.replace(/[\x00-\x1F\x7F-\x9F\\\/:*?"<>|]/g, ""); // filename-safe chars only (exclude control characters and Windows-forbidden chars)
 });
@@ -941,6 +1029,16 @@ document.getElementById("image-maxwidth").addEventListener("input", (event) => {
 
 document.getElementById("image-maxheight").addEventListener("input", (event) => {
 	event.target.value = event.target.value.replace(/[^0-9]/g, "");
+});
+
+document.getElementById("filename-template-text").addEventListener("focus", (event) => {
+	document.getElementById('info-panel').classList.remove("hidden");
+});
+
+document.getElementById("filename-template-text").addEventListener("blur", (event) => {
+	setTimeout(() => {
+		document.getElementById('info-panel').classList.toggle("hidden");
+	}, 100);
 });
 
 document.getElementById("image-maxwidth").addEventListener("focus", (event) => {
@@ -972,56 +1070,8 @@ window.addEventListener("DOMContentLoaded", () => {
 		}
 	}
 
-	document.getElementById("filename-template-text").disabled = (getRadioValue("option-filename") != "filename-template");
-	document.getElementById("jpg-quality-text").disabled = (getRadioValue("option-filetype") != "filetype-jpg");
+	resetEnabled();
 
 	document.getElementById("js-off").classList.toggle("hidden");
 	document.getElementById("js-on").classList.toggle("hidden");
 });
-
-
-
-
-
-
-
-
-
-
-
-function createXMP(metadata) {
-	const encoder = new TextEncoder();
-	const xmp = `<?xpacket begin="﻿" id="W5M0MpCehiHzreSzNTczkc9d"?>
-<x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="Adobe XMP Core 5.6-c067 79.157747, 2015/03/30-23:40:42        ">
-   <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
-	  <rdf:Description rdf:about=""
-			xmlns:xmp="http://ns.adobe.com/xap/1.0/"
-			xmlns:dc="http://purl.org/dc/elements/1.1/"
-			xmlns:xmpRights="http://ns.adobe.com/xap/1.0/rights/">
-		 <xmp:CreateDate>${getXMPDateString(metadata.dateTimeOriginal, metadata.timeZoneOffset)}</xmp:CreateDate>
-		 <dc:title>
-			<rdf:Alt>
-			   <rdf:li xml:lang="x-default">${metadata.title}</rdf:li>
-			</rdf:Alt>
-		 </dc:title>
-		 <dc:creator>
-			<rdf:Seq>
-			   <rdf:li>${metadata.artist}</rdf:li>
-			</rdf:Seq>
-		 </dc:creator>
-		 <dc:description>
-			<rdf:Alt>
-			   <rdf:li xml:lang="x-default">${metadata.title}</rdf:li>
-			</rdf:Alt>
-		 </dc:description>
-		 <dc:rights>
-			<rdf:Alt>
-			   <rdf:li xml:lang="x-default">${metadata.copyright}</rdf:li>
-			</rdf:Alt>
-		 </dc:rights>
-		 <xmpRights:Marked>${metadata.copyright ? "True" : "False"}</xmpRights:Marked>
-	  </rdf:Description>
-   </rdf:RDF>
-</x:xmpmeta>`
-	return encoder.encode(xmp);
-}
