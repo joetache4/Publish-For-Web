@@ -20,70 +20,16 @@ h1 {
 	margin: 20px 0;
 }
 
-.button {
-	font-family: 'Roboto', serif;
-	font-size: 14px;
-	letter-spacing: 0.15em;
-	padding: 5px 14px 5px 14px;
-	border-radius: 5px;
-	cursor: pointer;
-	color: white;
-	display: inline-block;
-	background-color: #5AF;
-	font-weight: bold;
-	text-decoration: none;
-	line-height: 1.5;
-}
-
-.button:hover {
-	background-color: #6BF;
-}
-
-.hollow-button {
-	background-color: transparent;
-	border: 2px solid #5AF;
-	padding: 3px 12px 3px 12px;
-}
-
-.hollow-button:hover {
-	background-color: #5AF;
-}
-
-.narrow-button {
-	padding: 8px 12px;
-	font-size: 12px;
-	letter-spacing: 0.1em;
-}
-
-a {
-	color: #5AF;
-}
-
-td {
-	padding-left: 8px;
-}
-
-ul {
-	padding-left: 10px;
-	line-height: 1.25;
-	margin: 0;
-}
-
-.note {
-	font-style: italic;
-}
-
 body {
-	display: flex;
+	display: flex; /* TODO content is being clipped on smaller screens*/
 	flex-direction: column;
-	flex-wrap: no-wrap;
 	align-items: center;
 }
 
 .all-options {
 	display: flex;
 	flex-direction: row;
-	justify-content: center;
+	align-items: center;
 }
 
 .option-col {
@@ -102,6 +48,23 @@ fieldset {
 legend {
 	color: #5AF;
 	font-weight: bold;
+}
+
+.note {
+	font-style: italic;
+}
+
+td {
+	padding-left: 8px;
+}
+
+p {
+	margin-bottom: 2px;
+	line-height: 1.2;
+}
+
+a {
+	color: #5AF;
 }
 
 input[type="file"] {
@@ -127,7 +90,7 @@ label {
 	text-align: right;
 }
 
-/* https://blog.logrocket.com/creating-beautiful-tooltips-with-only-css/ */
+/* Tooltip */
 
 .tooltip {
 	position: relative;
@@ -199,25 +162,76 @@ label {
 	transition: opacity 0.3s ease-in-out;
 }
 
-/*
-.tooltip {
-	font-weight: bold;
-	margin-left: 10px;
-	border-radius: 1.2ex;
-	padding: 1px;
-	border: 1px solid grey;
-	opacity: 80%;
+.button {
+	font-family: 'Roboto', serif;
+	font-size: 14px;
+	letter-spacing: 0.15em;
+	padding: 5px 14px 5px 14px;
+	border-radius: 5px;
 	cursor: pointer;
+	color: white;
+	display: inline-block;
+	background-color: #5AF;
+	font-weight: bold;
+	text-decoration: none;
+	line-height: 1.5;
 }
-*/
 
-.footer {
-	border-top: 1px solid #5AF;
-	margin-top: 80px;
-	margin-bottom: 20px;
-	color: grey;
+.button:hover {
+	background-color: #6BF;
+}
+
+.hollow-button {
+	background-color: transparent;
+	border: 2px solid #5AF;
+	padding: 3px 12px 3px 12px;
+}
+
+.hollow-button:hover {
+	background-color: #5AF;
+}
+
+.narrow-button {
+	padding: 8px 12px;
 	font-size: 12px;
-	padding-top: 5px;
+	letter-spacing: 0.1em;
+}
+
+/* Spinner */
+
+.lds-dual-ring {
+  color: #5AF;
+}
+
+.lds-dual-ring, .lds-dual-ring:after {
+  box-sizing: border-box;
+}
+
+.lds-dual-ring {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+}
+
+.lds-dual-ring:after {
+  content: " ";
+  display: block;
+  width: 16px;
+  height: 16px;
+  margin: 2px;
+  border-radius: 50%;
+  border: 3px solid currentColor;
+  border-color: currentColor transparent currentColor transparent;
+  animation: lds-dual-ring 1.2s linear infinite;
+}
+
+@keyframes lds-dual-ring {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .social-links {
@@ -253,40 +267,6 @@ label {
 	left: 50%;
 	transform: translate(-50%, 0%);
 	z-index: 1000;
-}
-
-/* Spinner */
-
-.lds-dual-ring {
-  color: #5AF;
-}
-.lds-dual-ring,
-.lds-dual-ring:after {
-  box-sizing: border-box;
-}
-.lds-dual-ring {
-  display: inline-block;
-  width: 20px;
-  height: 20px;
-}
-.lds-dual-ring:after {
-  content: " ";
-  display: block;
-  width: 16px;
-  height: 16px;
-  margin: 2px;
-  border-radius: 50%;
-  border: 3px solid currentColor;
-  border-color: currentColor transparent currentColor transparent;
-  animation: lds-dual-ring 1.2s linear infinite;
-}
-@keyframes lds-dual-ring {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
 }
 
 .noselect {
