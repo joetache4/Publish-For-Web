@@ -114,11 +114,7 @@
 <fieldset>
   <legend>Last Modified Time</legend>
   <div>
-	<input type="radio" id="modtime-interpret" name="option-modtime" value="modtime-interpret" required />
-	<label for="modtime-interpret"><span class="tooltip" data-tip="An 8-digit sequence followed by a 6-digit sequence will be interpretted as date and time. The two sequences can be located anywhere as long as they are in that order.">Interpret from filename</span></label>
-  </div>
-  <div>
-	<input type="radio" id="modtime-now" name="option-modtime" value="modtime-now" />
+	<input type="radio" id="modtime-now" name="option-modtime" value="modtime-now" default checked required />
 	<label for="modtime-now">Now</label>
   </div>
   <div>
@@ -127,7 +123,11 @@
 	<input id="modtime-date-picker" type="datetime-local" step=1 />
   </div>
   <div>
-	<input type="radio" id="modtime-carry" name="option-modtime" value="modtime-carry" default checked />
+	<input type="radio" id="modtime-interpret" name="option-modtime" value="modtime-interpret" />
+	<label for="modtime-interpret"><span class="tooltip" data-tip="An 8-digit sequence followed by a 6-digit sequence will be interpretted as date and time. The two sequences can be located anywhere as long as they are in that order.">Interpret from filename</span></label>
+  </div>
+  <div>
+	<input type="radio" id="modtime-carry" name="option-modtime" value="modtime-carry" />
 	<label for="modtime-carry">No change</label>
   </div>
 </fieldset>
