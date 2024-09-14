@@ -506,11 +506,14 @@ function getNewEXIFData(file) {
 		// TODO read exif date
 		dateTimeOriginal = "";
 	} else if (dateTimeOriginal == "exif-date-modtime-old") {
-		dateTimeOriginal = DateTime.fromISO(getLocalDateISOString(file.lastModified)).toFormat("yyyy:LL:dd HH:mm:ss"); // TODO can do this without DateTime
+		dateTimeOriginal = getLocalDateISOString(file.lastModified);
+		dateTimeOriginal = dateTimeOriginal.replaceAll("-", ":").replace("T", " ");
 	} else if (dateTimeOriginal == "exif-date-modtime-new") {
-		dateTimeOriginal = DateTime.fromISO(getLocalDateISOString(getNewModtime(file))).toFormat("yyyy:LL:dd HH:mm:ss");
+		dateTimeOriginal = getLocalDateISOString(getNewModtime(file));
+		dateTimeOriginal = dateTimeOriginal.replaceAll("-", ":").replace("T", " ");
 	} else if (dateTimeOriginal == "exif-date-interpret") {
-		dateTimeOriginal = DateTime.fromISO(getLocalDateISOString(interpretDateFromFilename(file))).toFormat("yyyy:LL:dd HH:mm:ss");
+		dateTimeOriginal = getLocalDateISOString(interpretDateFromFilename(file));
+		dateTimeOriginal = dateTimeOriginal.replaceAll("-", ":").replace("T", " ");
 	} else {
 		dateTimeOriginal = "";
 	}
