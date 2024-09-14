@@ -18,10 +18,201 @@ const MIME = {
 
 
 
+
+function* getNewFilename(file, newMetadata, oldMetadata) {
+	const val = getRadioValue("option-filename");
+	let [dir, basename, ext] = splitFilename(file.webkitRelativePath || file.name);
+
+	if (val === "filename-whitespace") {
+		basename = basename.trim().toLowerCase().replaceAll(/ +/g, "-");
+	} else if (val === "filename-template") {
+		let template = getInputOrDefault("filename-template-text");
+
+		// default params
+		template = template.replaceAll(/(?<!%)%(?![fFGxwhdDrR%])/g, "%%"); // lone % is taken literally
+		template = template.replaceAll(/%d(?!{)/g, "%d{yyyyLLdd_HHmmss}"); // default Date format
+		template = template.replaceAll(/%D(?!{)/g, "%d{yyyyLLdd_HHmmss}"); // default Date format
+		template = template.replaceAll(/%r(?!{)/g, "%r{4}");               // default random count
+		template = template.replaceAll(/%R(?!{)/g, "%R{4}");               // default random count
+
+		let out = "";
+		let command = "", arg = "";
+
+		for (let i = 0; i < template.length; i++) {
+			let c = template.charAt(i);
+			if (command) {
+				if (c === "}") {
+					if (command === "r") {
+						arg = safeParseInt(arg, 1);
+						out += Math.floor(Math.random() * 10**arg);
+					} else if (command === "R") {
+						arg = safeParseInt(arg, 1);
+						const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+						for (let j = 0; j < arg; j++) {
+							const randomIndex = Math.floor(Math.random() * characters.length);
+							out += characters.charAt(randomIndex);
+						}
+					} else if (command === "d") {
+						let tmp = getDateTaken(file, oldMetadata.exif).dateTimeOriginal;
+						tmp = DateTime.fromJSDate(tmp);
+						tmp = tmp.toFormat(arg);
+						out += tmp;
+					} else if (command === "D") {
+						out += DateTime.now().toFormat(arg);
+					}
+					command = "";
+					arg = "";
+				} else {
+					arg += c;
+				}
+			} else if (c == "%") {
+				i++;
+				if (i === template.length) break;
+				command = template.charAt(i);
+				if (command === "f") {
+					out += basename.trim().toLowerCase().replaceAll(/ +/g, "-");
+					command = "";
+				} else if (command === "F") {
+					out += basename.trim().replaceAll(/ +/g, "-");
+					command = "";
+				} else if (command === "G") {
+					out += basename;
+					command = "";
+				} else if (command === "x") {
+					out += ext.substring(1); // old extension
+					command = "";
+				} else if (command === "w") {
+					out += newMetadata.width;
+					command = "";
+				} else if (command === "h") {
+					out += newMetadata.height;
+					command = "";
+				} else if (command === "d") {
+					i++;
+				} else if (command === "D") {
+					i++;
+				} else if (command === "r") {
+					i++;
+				} else if (command === "R") {
+					i++;
+				} else if (command === "%") {
+					out += "%";
+					command = "";
+				} else {
+					// error, uncrecognized command
+					throw new Error("Uncrecognized command in template");
+				}
+			} else {
+				out += c;
+			}
+		}
+
+		basename = out;
+	}
+	const format = getNewFormat(file, oldMetadata);
+	if (format == "image/jpeg") {
+		ext = ".jpg";
+	} else {
+		ext = "." + format.substring(6);
+	}
+
+	for (let i = 0; ; i++) {
+		if (i)
+			yield [dir, basename, "-", i, ext].join("");
+		else
+			yield [dir, basename, ext].join("");
+	}
+}
+
+function getNewDimensions(img) {
+	let newWidth = img.width, newHeight = img.height;
+	let maxWidth = parseInt(document.getElementById("image-maxwidth").value);
+	let maxHeight = parseInt(document.getElementById("image-maxheight").value);
+
+	if (isNaN(maxWidth)) {
+		maxWidth = img.width;
+	}
+	if (isNaN(maxHeight)) {
+		maxWidth = img.height;
+	}
+
+	if (newWidth > maxWidth) {
+		newHeight = newHeight * maxWidth / newWidth;
+		newWidth = maxWidth;
+	}
+	if (newHeight > maxHeight) {
+		newWidth = newWidth * maxHeight / newHeight;
+		newHeight = maxHeight;
+	}
+	newWidth = Math.floor(newWidth + 0.0001);
+	newHeight = Math.floor(newHeight + 0.0001);
+	return [newWidth, newHeight];
+}
+
+function getNewFormat(file, metadata) {
+	const val = getRadioValue("option-filetype");
+	if (val === "filetype-jpg") {
+		return "image/jpeg";
+	} else if (val === "filetype-png") {
+		return "image/png";
+	} else if (val === "filetype-webp") {
+		if (/^((?!chrome|android).)*safari/i.test(navigator.userAgent))
+			throw new Error("WEBP not supported"); // safari does not support webp
+		return "image/webp";
+	} else if (val === "filetype-match") {
+		return metadata.type;
+		// match file extension of input
+		/*
+		const [dir, basename, ext] = splitFilename(file.name); //drag-and-dropped files sometimes don't have a type, need to look at file ext
+		let mime = MIME[ext];
+		if (mime === undefined) {
+			mime = "image/jpeg";
+		}
+		if (mime === "image/webp" && /^((?!chrome|android).)*safari/i.test(navigator.userAgent)) {
+			mime = "image/jpeg";
+		}
+		return mime;
+		*/
+	}
+}
+
+function getNewQuality() {
+	let quality = parseFloat(getInputOrDefault("jpg-quality-text"));
+	quality = clamp(quality, 0.0, 1.0);
+	return quality;
+}
+
+function getNewMetadata(file, metadata, resized) {
+	const newMetadata = {};
+	newMetadata.type   = metadata.type;
+	newMetadata.width  = resized.width;
+	newMetadata.height = resized.height;
+
+	const artist    = document.getElementById("meta-artist").value;
+	const title     = document.getElementById("meta-title").value;
+	const copyright = document.getElementById("meta-copyright").value;
+	const checked = document.getElementById("meta-date").checked;
+	let dateTaken   = {};
+	if (checked) {
+		dateTaken = getDateTaken(file, metadata.exif);
+	}
+	newMetadata.exif = {
+		artist             : artist,
+		title              : title,
+		copyright          : copyright,
+		dateTimeOriginal   : dateTaken.dateTimeOriginal,
+		timeZoneOffset     : dateTaken.timeZoneOffset,
+		subSecTimeOriginal : dateTaken.subSecTimeOriginal,
+	};
+
+	return newMetadata;
+}
+
 function getDateTaken(file, metadata) {
+
 	// 1. Look for Date in EXIF
 
-	if (metadata.dateTimeOriginal) {
+	if (metadata && metadata.dateTimeOriginal) {
 		return {
 			dateTimeOriginal   : metadata.dateTimeOriginal,
 			timeZoneOffset     : metadata.timeZoneOffset,     // can be undefined
@@ -80,193 +271,6 @@ function getDateTaken(file, metadata) {
 
 
 
-function* getNewFilename(file, width, height, oldMetadata) {
-	const val = getRadioValue("option-filename");
-	let [dir, basename, ext] = splitFilename(file.webkitRelativePath || file.name);
-
-	if (val === "filename-whitespace") {
-		basename = basename.trim().toLowerCase().replaceAll(/ +/g, "-");
-	} else if (val === "filename-template") {
-		let template = getInputOrDefault("filename-template-text");
-
-		// default params
-		template = template.replaceAll(/(?<!%)%(?![fFGxwhdDrR%])/g, "%%"); // lone % is taken literally
-		template = template.replaceAll(/%d(?!{)/g, "%d{yyyyLLdd_HHmmss}"); // default Date format
-		template = template.replaceAll(/%r(?!{)/g, "%r{4}");               // default random count
-		template = template.replaceAll(/%R(?!{)/g, "%R{4}");               // default random count
-
-		let out = "";
-		let command = "", arg = "";
-
-		for (let i = 0; i < template.length; i++) {
-			let c = template.charAt(i);
-			if (command) {
-				if (c === "}") {
-					if (command === "r") {
-						arg = safeParseInt(arg, 1);
-						out += Math.floor(Math.random() * 10**arg);
-					} else if (command === "R") {
-						arg = safeParseInt(arg, 1);
-						const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-						for (let j = 0; j < arg; j++) {
-							const randomIndex = Math.floor(Math.random() * characters.length);
-							out += characters.charAt(randomIndex);
-						}
-					} else if (command === "d") {
-						let tmp = getDateTaken(file, oldMetadata).dateTimeOriginal;
-						tmp = DateTime.fromJSDate(tmp);
-						tmp = tmp.toFormat(arg);
-						out += tmp;
-					} else if (command === "D") {
-						out += DateTime.now().toFormat(arg);
-					}
-					command = "";
-					arg = "";
-				} else {
-					arg += c;
-				}
-			} else if (c == "%") {
-				i++;
-				if (i === template.length) break;
-				command = template.charAt(i);
-				if (command === "f") {
-					out += basename.trim().toLowerCase().replaceAll(/ +/g, "-");
-					command = "";
-				} else if (command === "F") {
-					out += basename.trim().replaceAll(/ +/g, "-");
-					command = "";
-				} else if (command === "G") {
-					out += basename;
-					command = "";
-				} else if (command === "x") {
-					out += ext.substring(1); // old extension
-					command = "";
-				} else if (command === "w") {
-					out += width;
-					command = "";
-				} else if (command === "h") {
-					out += height;
-					command = "";
-				} else if (command === "d") {
-					i++;
-				} else if (command === "D") {
-					i++;
-				} else if (command === "r") {
-					i++;
-				} else if (command === "R") {
-					i++;
-				} else if (command === "%") {
-					out += "%";
-					command = "";
-				} else {
-					// error, uncrecognized command
-					throw new Error("Uncrecognized command in template");
-				}
-			} else {
-				out += c;
-			}
-		}
-
-		basename = out;
-	}
-	let format = getNewFormat(file);
-	if (format == "image/jpeg") {
-		format = "image/jpg";
-	}
-	ext = "." + format.substring(6);
-
-	for (let i = 0; ; i++) {
-		if (i)
-			yield [dir, basename, "-", i, ext].join("");
-		else
-			yield [dir, basename, ext].join("");
-	}
-}
-
-function getNewDimensions(img) {
-	let newWidth = img.width, newHeight = img.height;
-	let maxWidth = parseInt(document.getElementById("image-maxwidth").value);
-	let maxHeight = parseInt(document.getElementById("image-maxheight").value);
-
-	if (isNaN(maxWidth)) {
-		maxWidth = img.width;
-	}
-	if (isNaN(maxHeight)) {
-		maxWidth = img.height;
-	}
-
-	if (newWidth > maxWidth) {
-		newHeight = newHeight * maxWidth / newWidth;
-		newWidth = maxWidth;
-	}
-	if (newHeight > maxHeight) {
-		newWidth = newWidth * maxHeight / newHeight;
-		newHeight = maxHeight;
-	}
-	newWidth = Math.floor(newWidth + 0.0001);
-	newHeight = Math.floor(newHeight + 0.0001);
-	return [newWidth, newHeight];
-}
-
-function getNewFormat(file) {
-	const val = getRadioValue("option-filetype");
-	if (val === "filetype-jpg") {
-		return "image/jpeg";
-	} else if (val === "filetype-png") {
-		return "image/png";
-	} else if (val === "filetype-webp") {
-		if (/^((?!chrome|android).)*safari/i.test(navigator.userAgent))
-			throw new Error("WEBP not supported"); // safari does not support webp
-		return "image/webp";
-	} else {
-		// match file type of input
-		const [dir, basename, ext] = splitFilename(file.name); //drag-and-dropped files sometimes don't have a type, need to look at file ext
-		let mime = MIME[ext];
-		if (mime === undefined) {
-			mime = "image/jpeg";
-		}
-		if (mime === "image/webp" && /^((?!chrome|android).)*safari/i.test(navigator.userAgent)) {
-			mime = "image/jpeg";
-		}
-		return mime;
-	}
-}
-
-function getNewQuality() {
-	let quality = parseFloat(getInputOrDefault("jpg-quality-text"));
-	quality = clamp(quality, 0.0, 1.0);
-	return quality;
-}
-
-function getNewMetadata(file, metadata) {
-	const artist    = document.getElementById("meta-artist").value;
-	const title     = document.getElementById("meta-title").value;
-	const copyright = document.getElementById("meta-copyright").value;
-	const checked = document.getElementById("meta-date").checked;
-	let dateTaken   = {};
-	if (checked) {
-		dateTaken = getDateTaken(file, metadata);
-	}
-	return {
-		artist             : artist,
-		title              : title,
-		copyright          : copyright,
-		dateTimeOriginal   : dateTaken.dateTimeOriginal,
-		timeZoneOffset     : dateTaken.timeZoneOffset,
-		subSecTimeOriginal : dateTaken.subSecTimeOriginal,
-	};
-}
-
-
-
-
-
-
-
-
-
-
-
 function processFiles(f) {
 	if (f.length == 1 && !f[0].webkitRelativePath.includes("/")) {
 		processSingle(f[0]);
@@ -277,22 +281,23 @@ function processFiles(f) {
 
 function processSingle(f) {
 	console.log("beginning file: " + f.name);
-	let blob, width, height, oldMetadata;
-	return resizeImage(f)
-	.then(resolved => {
-		blob = resolved.blob, width = resolved.width, height = resolved.height;
-		return getFileMetadata(f);
+	let oldMetadata, resized, newMetadata;
+	return readMetadata(f)
+	.then(x => {
+		oldMetadata = x;
+		if (!oldMetadata.type)
+			throw new Error("Unsupported file type");
+		return resizeImage(f, oldMetadata);
 	})
-	.then(m => {
-		oldMetadata = m;
-		const newMetadata = getNewMetadata(f, oldMetadata);
-		return insertMetadata(blob, newMetadata);
+	.then(x => {
+		resized = x;
+		newMetadata = getNewMetadata(f, oldMetadata, resized);
+		return insertMetadata(resized.blob, newMetadata);
 	})
-	.then(metaBlob => {
-		const newName = getNewFilename(f, width, height, oldMetadata).next().value;
-
+	.then(newBlob => {
+		const newName = getNewFilename(f, newMetadata, oldMetadata).next().value;
 		console.log("renaming to: " + newName);
-		saveAs(metaBlob, newName);
+		saveAs(newBlob, newName);
 	})
 	.catch(err => {
 		console.log(err);
@@ -323,21 +328,23 @@ function processMultiple(files) {
 		Array.from(files).map(f => {
 
 			console.log("beginning file: " + f.name);
-			let blob, width, height, oldMetadata;
-			return resizeImage(f)
-			.then(resolved => {
-				blob = resolved.blob, width = resolved.width, height = resolved.height;
-				return getFileMetadata(f);
+			let oldMetadata, resized, newMetadata;
+			return readMetadata(f)
+			.then(x => {
+				oldMetadata = x;
+				if (!oldMetadata.type)
+					throw new Error("Unsupported file type");
+				return resizeImage(f, oldMetadata);
 			})
-			.then(m => {
-				oldMetadata = m;
-				const newMetadata = getNewMetadata(f, oldMetadata);
-				return insertMetadata(blob, newMetadata);
+			.then(x => {
+				resized = x;
+				newMetadata = getNewMetadata(f, oldMetadata, resized);
+				return insertMetadata(resized.blob, newMetadata);
 			})
-			.then(metaBlob => {
+			.then(newBlob => {
 				// get unique file name
 				let newName;
-				for(newName of getNewFilename(f, width, height, oldMetadata)) {
+				for(newName of getNewFilename(f, newMetadata, oldMetadata)) {
 					if (!usedFilenames.has(newName)) {
 						usedFilenames.add(newName);
 						break;
@@ -345,7 +352,7 @@ function processMultiple(files) {
 				}
 
 				console.log("adding file: " + newName);
-				zip.file(newName, metaBlob);
+				zip.file(newName, newBlob);
 			})
 			.catch(err => {
 				console.log("error: " + f.name);
@@ -378,16 +385,33 @@ function processMultiple(files) {
 	});
 }
 
-// images need to be decoded to remove metadata
-function resizeImage(file) {
+function resizeImage(file, metadata) {
+
 	return new Promise((resolve, reject) => {
+		let [newWidth, newHeight] = getNewDimensions(metadata);
+		let newType = getNewFormat(file, metadata);
+
+		if (newType == metadata.type && newWidth == metadata.width && newHeight == metadata.height) {
+			removeMetadata(file, metadata.type)
+			.then(removed => {
+				if (removed) {
+					console.log("copying image data");
+					resolve({
+						blob   : removed,
+						width  : newWidth,
+						height : newHeight,
+					});
+				}
+			});
+		}
+
 		const reader = new FileReader();
+
 		reader.onload = (event) => {
-
 			const img = new Image();
-			img.onload = () => {
-				const [newWidth, newHeight] = getNewDimensions(img);
 
+			img.onload = () => {
+				[newWidth, newHeight] = getNewDimensions(img);
 				const canvas = document.createElement("canvas");
 				if (img.width != newWidth || img.height != newHeight) {
 					const fcanvas = new fabric.Canvas(canvas, {
@@ -396,14 +420,12 @@ function resizeImage(file) {
 					});
 					fcanvas.setWidth(newWidth);
 					fcanvas.setHeight(newHeight);
-
 					const lanczosFilter = new fabric.Image.filters.Resize({
 						scaleX: 1,
 						scaleY: 1,
 						resizeType: "lanczos",
 						lanczosLobes: 3,
 					});
-
 					const fimg = new fabric.Image(img).scale(newWidth / img.width);
 					const r = fcanvas.getRetinaScaling();
 					lanczosFilter.scaleX = lanczosFilter.scaleY = fimg.scaleX * r;
@@ -417,24 +439,26 @@ function resizeImage(file) {
 					const ctx = canvas.getContext("2d");
 					ctx.drawImage(img, 0, 0);
 				}
-				const newFormat  = getNewFormat(file);
+				const newFormat  = getNewFormat(file, metadata);
 				const newQuality = getNewQuality(file) ** (1.0/6); // take root b/c lanczos quality seems to increase exponentially
 
 				console.log("converting image: " + newFormat + " " + newQuality);
 				canvas.toBlob(blob => {
 					resolve({
-						blob      : blob, 
-						newWidth  : newWidth, 
-						newHeight : newHeight,
+						blob   : blob,
+						width  : newWidth,
+						height : newHeight,
 					});
-				}, newFormat, newQuality); // TODO standard PNG compression isn't the best
+				}, newFormat, newQuality);
 			};
+
 			img.onerror = (error) => {
 				reject(error);
 			};
 
 			img.src = event.target.result;
 		};
+
 		reader.onerror = (error) => {
 			reject(error);
 		};

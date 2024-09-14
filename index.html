@@ -51,11 +51,11 @@
 </div>
 <div class="selection">
 <input type="radio" id="filetype-webp" name="option-filetype" value="filetype-webp" />
-<label for="filetype-webp">WEBP</label>
+<label for="filetype-webp">WebP</label>
 </div>
 <div class="selection">
 <input type="radio" id="filetype-match" name="option-filetype" value="filetype-match" />
-<label for="filetype-match"><span class="tooltip" data-tip="Will attempt to maintain JPG, PNG, and WEBP file formats in output. All others will be JPG at the above quality.">Match Input</span></label>
+<label for="filetype-match"><span class="tooltip" data-tip="Will attempt to maintain JPG, PNG, and WebP file formats in output. All others will be saved as JPGs at the above quality.">Match Input</span></label>
 </div>
 </fieldset>
 
@@ -74,7 +74,7 @@
 </fieldset>
 
 <fieldset>
-<legend><span class="tooltip" data-tip="All metadata will be removed except that specified below. Metadata will be saved for JPGs only.">EXIF Metadata</span></legend>
+<legend><span class="tooltip" data-tip="All metadata will be removed except that which is specified below. New metadata will be saved for JPGs only.">EXIF Metadata</span></legend>
 <div class="selection">
 <label for="option-meta-artist" style="display: inline-block; width: 90px;">Artist:</label>
 <input type="text" id="meta-artist" name="option-meta-artist" maxlength="280" default="" />
@@ -93,7 +93,7 @@
 <div class="selection">
 <label for="option-meta-date" style="display: inline-block; width: 90px;">DateTimeOriginal:</label>
 <input type="checkbox" name="option-meta-date" id="meta-date">
-<span class="note tooltip" data-tip="Will attempt in order: read input file EXIF, parse input file name, use last modified time">(interprets from input file)</span>
+<span class="note tooltip" data-tip="Will attempt in order: read input file EXIF, parse input file name, use file last modified time.">(interprets from input file)</span>
 </div>
 <br>
 </fieldset>

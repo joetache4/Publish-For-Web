@@ -35,15 +35,15 @@ Only static images (JPG, PNG, WEBP, TIFF, and BMP) are supported. The page can a
 
 **`PNG`** Output all files as PNG.
 
-**`Match Input`** Will attempt to save images in the same format as they were inputted.
+**`WEBP`** Output all files as PNG.
 
-**`Copy Data`** Will save a copy of the image without loss of quality. (Not yet implemented)
+**`Match Input`** Will attempt to save JPG, PNG, and WEBP images in the same format as they were inputted. Other files will be saved as JPGs.
 
 <div align="center">
 <h3>Max Dimensions</h3>
 </div>
 
-Any image that has a width or height greater than these values will be scaled down so both are at or below these limits. Images are scaled using Lanczos resampling with 3 lobes.
+If necessary, images will be scaled down to not exceed these limits. Images are scaled using Lanczos resampling with 3 lobes.
 
 If left blank, then the corresponding dimension will have no limit.
 
@@ -57,7 +57,7 @@ If left blank, then the corresponding dimension will have no limit.
 <h3>Metadata</h3>
 </div>
 
-Only basic metadata is supported, including Artist, Title/Description, Copyright, and DateTimeOriginal (the date the picture was taken/made). All other metadata will be removed. Each text field has a character limit of 280 ASCII characters.
+Only basic EXIF metadata is supported, including Artist, Title/Description, Copyright, and DateTimeOriginal (the date the picture was taken/made). All other metadata will be removed. Each text field has a character limit of 280 ASCII characters.
 
 Metadata is supported for JPGs only.
 
@@ -69,7 +69,4 @@ Metadata is supported for JPGs only.
 
 **`Copyright`** Who owns the copyright. (Default: *[blank]*)
 
-**`DateTimeOriginal`** The date the picture was taken or made, at millisecond granularity if possible. (Default: *[off]*)
-
-> [!WARNING]
-> `DateTimeOriginal` includes timezone data.
+**`DateTimeOriginal`** The date the picture was taken or made, at millisecond granularity if possible. Includes timezone data. Checking this option will attempt to get the creation date in the following order of priority: existing EXIF DateTimeOriginal, interpret from filename, file last modified time. (Default: *[off]*)

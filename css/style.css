@@ -295,8 +295,8 @@ label {
 	padding: 20px;
 	text-align: center;
 	background-color: #5AF;
-	border-left: 20px solid white;
-	border-right: 20px solid transparent;
+	border-left: 40px solid white;
+	border-right: 40px solid transparent;
 	box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.6);
 }
 

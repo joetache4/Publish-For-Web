@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script src="./scripts/app.metadata.js"></script>
+</head>
+
+<body>
+
+<div id="text"></div>
+
+<script>
+
+let text = document.getElementById("text");
+
+function header(str) {
+	const h = document.createElement("h3");
+	h.textContent = str;
+	text.appendChild(h);
+}
+
+function equalArray(a, b) {
+	let val = a.length == b.length;
+	if (!val)
+		return false;
+	for (let i  = 0; i < a.length; i++)
+		if (a[i] != b[i])
+			return false;
+	return true;
+}
+
+function assert(bool) {
+	if (bool) {
+		const success = document.createElement("div");
+		success.style = "color: green";
+		success.textContent += "success";
+		text.appendChild(success);
+	} else {
+		const fail = document.createElement("div");
+		fail.style = "color: red";
+		fail.textContent += "failure";
+		text.appendChild(fail);
+	}
+}
+
+function assertErr(func) {
+	try {
+		func();
+		assert(false);
+	} catch {
+		assert(true);
+	}
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+header("TEST: numberToBytes / bytesToNumber");
+
+let num, length, nigEndian, signed;
+
+num = 1, length = 1, bigEndian = true, signed = true;
+assert(num == bytesToNumber(numberToBytes(num, length, signed, bigEndian), 0, length, bigEndian, signed));
+
+num = -1, length = 1, bigEndian = true, signed = true;
+assert(num == bytesToNumber(numberToBytes(num, length, signed, bigEndian), 0, length, bigEndian, signed));
+
+num = -1, length = 2, bigEndian = true, signed = true;
+assert(num == bytesToNumber(numberToBytes(num, length, signed, bigEndian), 0, length, bigEndian, signed));
+
+num = -1, length = 4, bigEndian = true, signed = true;
+assert(num == bytesToNumber(numberToBytes(num, length, signed, bigEndian), 0, length, bigEndian, signed));
+
+num = 2**31+1, length = 4, bigEndian = true, signed = false;
+assert(num == bytesToNumber(numberToBytes(num, length, signed, bigEndian), 0, length, bigEndian, signed));
+
+num = 2**31+1, length = 4, bigEndian = false, signed = false;
+assert(num == bytesToNumber(numberToBytes(num, length, signed, bigEndian), 0, length, bigEndian, signed));
+
+num = -1, length = 4, bigEndian = false, signed = false;
+assertErr(() => {numberToBytes(num, length, signed, bigEndian), 0, length, bigEndian, signed});
+
+num = 1000, length = 1, bigEndian = true, signed = false;
+assertErr(() => {numberToBytes(num, length, signed, bigEndian), 0, length, bigEndian, signed});
+
+header("TEST: pngCRC")
+
+assert(equalArray(
+	[0xd2, 0xfa, 0x10, 0x9c],
+	numberToBytes(pngCRC([0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x13, 0x88, 0x00, 0x00, 0x13, 0x88, 0x08, 0x02, 0x00, 0x00, 0x00]), 4, true) // IHDR CRC
+));
+
+let crc = pngCRC([0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x13, 0x88, 0x00, 0x00]);
+crc     = pngCRC([0x13, 0x88, 0x08, 0x02, 0x00, 0x00, 0x00], crc ^ 0xffffffff);
+assert(equalArray(
+	numberToBytes(pngCRC([0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x13, 0x88, 0x00, 0x00, 0x13, 0x88, 0x08, 0x02, 0x00, 0x00, 0x00]), 4, true),
+	numberToBytes(crc, 4, true)
+));
+
+assert(equalArray(
+	[0xae, 0x42, 0x60, 0x82],
+	numberToBytes(pngCRC([0x49, 0x45, 0x4e, 0x44]), 4, true) // IEND CRC
+));
+
+</script>
+</body></html>
