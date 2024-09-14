@@ -30,7 +30,6 @@ Template String
 %h height
 
 %d{FORMAT} modtime in the given format
-%k size in kilobytes (integer only)
 
 %r{N} N random digits
 %R{N} N random alphanumeric chars
@@ -47,7 +46,7 @@ Template String
   </div>
   <div>
     <input type="radio" id="filename-template" name="option-filename" value="filename-template" />
-    <label for="filename-template"><span class="tooltip" data-tip="%f = old file name, no extension, no whitespace, lowercase | %F = old file name, no extension, no whitespace, original case | %G = old file name, no extension | %x = old file extension | %w = width | %h = height | %d{FORMAT} = modtime in the given format | %k = size in kilobytes (integer only) | %r{N} = N random digits | %R{N} = N random alphanumeric chars | %% = percent sign">Template</span></label> <!-- TODO use javascript to make a mutlti-line tooltip -->
+    <label for="filename-template"><span class="tooltip" data-tip="%f = old file name, no extension, no whitespace, lowercase | %F = old file name, no extension, no whitespace, original case | %G = old file name, no extension | %x = old file extension | %w = new width | %h = new height | %d{FORMAT} = modtime in the given format | %r{N} = N random digits | %R{N} = N random alphanumeric chars | %% = percent sign">Template</span></label> <!-- TODO use javascript to make a mutlti-line tooltip -->
 	<br>
 	<input id="filename-template-text" type="text" value="%f" class="long-input" />
   </div>
@@ -152,7 +151,7 @@ function splitFilename(name) {
 	const lastDotIndex = name.lastIndexOf(".");
 	const lastSlashIndex = name.lastIndexOf("/");
 
-	const dir      = lastSlashIndex !== -1 ? name.substring(0, lastSlashIndex) : "";
+	const dir      = lastSlashIndex !== -1 ? name.substring(0, lastSlashIndex+1) : "";
 	const basename = lastDotIndex   !== -1 ? name.substring(lastSlashIndex+1, lastDotIndex) : name.substring(lastSlashIndex+1);
 	const ext      = lastDotIndex   !== -1 ? name.substring(lastDotIndex     ) : "";
 	return [dir, basename, ext];
@@ -229,9 +228,6 @@ function getNewFilename(file) {
 					command = "";
 				} else if (command === "d") {
 					i++;
-				} else if (command === "k") {
-					out += Math.max(1, Math.floor(file.size/1024));
-					command = "";
 				} else if (command === "r") {
 					i++;
 				} else if (command === "R") {
@@ -239,6 +235,9 @@ function getNewFilename(file) {
 				} else if (command === "%") {
 					out += "%";
 					command = "";
+				} else {
+					// error, uncrecognized command
+					throw new Error("Uncrecognized command in template");
 				}
 			} else {
 				out += c;
