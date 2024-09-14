@@ -5,9 +5,10 @@ html, body {
 
 body {
 	font-family: 'Roboto', serif;
-	font-size: 14px;
+	font-size: 11px;
 	color: #B3B3B3;
 	background-color: #333;
+	line-height: 1.0;
 }
 
 h1 {
@@ -16,6 +17,7 @@ h1 {
 	font-weight: bold;
 	letter-spacing: 0.1em;
 	font-size: 36px;
+	margin: 20px 0;
 }
 
 .button {
@@ -30,6 +32,7 @@ h1 {
 	background-color: #5AF;
 	font-weight: bold;
 	text-decoration: none;
+	line-height: 1.5;
 }
 
 .button:hover {
@@ -52,10 +55,6 @@ h1 {
 	letter-spacing: 0.1em;
 }
 
-.tall-button {
-	line-height: 1.5;
-}
-
 .hidden {
 	display: none;
 }
@@ -70,34 +69,50 @@ h1 {
 	                              supported by Chrome, Edge, Opera and Firefox */
 }
 
+a {
+	color: #5AF;
+}
+
+td {
+	padding-left: 8px;
+}
+
+ul {
+	padding-left: 10px;
+}
 
 
 /* First "page" */
 
-.options-page {
-	font-size: 12px;
+body {
 	display: flex;
 	flex-direction: column;
-	flex-wrap: wrap;
-	/* justify-content: center; */
+	flex-wrap: no-wrap;
 	align-items: center;
+}
+
+.all-options {
+	display: flex;
+	flex-direction: row;
+	justify-content: center;
+}
+
+.option-col {
+	display: flex;
+	flex-direction: column;
+	margin: 0 10px 0;
 	height: 100%;
 	width: 400px;
-	margin: 0 auto;
 }
 
-.options-page > h1 {
-	margin: 20px 0;
+fieldset {
+	margin-bottom: 10px;
+	padding: 5px 10px 5px;
 }
 
-.option {
-	margin-bottom: 20px;
-	width: 100%;
-}
-
-.long-input {
-	margin-left: 50px;
-	width: 265px;
+legend {
+	color: #5AF;
+	font-weight: bold;
 }
 
 input[type="file"] {
@@ -115,6 +130,10 @@ input[type="checkbox"] {
 	accent-color: #5AF;
 }
 
+.inline-sep {
+	padding: 0 10px 0;
+}
+
 /* https://blog.logrocket.com/creating-beautiful-tooltips-with-only-css/ */
 
 .tooltip {
@@ -130,9 +149,9 @@ input[type="checkbox"] {
 	top: 50%;
 	transform: translateY(-50%);
 
-	/* move to left */
-	right: 100%;
-	margin-right: 18px;
+	/* move to right */
+	left: 100%;
+	margin-left: 18px;
 
 	/* basic styles */
 	width: 300px;
@@ -158,8 +177,8 @@ input[type="checkbox"] {
 	position: absolute;
 
 	/* position tooltip correctly */
-	right: 100%;
-	margin-right: -2px;
+	left: 100%;
+	margin-left: -2px;
 
 	/* vertically center */
 	top: 50%;
@@ -167,7 +186,7 @@ input[type="checkbox"] {
 
 	/* the arrow */
 	border: 10px solid #181818;
-	border-color: transparent transparent transparent #181818;
+	border-color: transparent #181818 transparent transparent;
 
 	visibility: hidden;
 	opacity: 0;

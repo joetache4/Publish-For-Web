@@ -10,34 +10,51 @@
 	<script src="./scripts/jszip.min.js"></script>
 </head>
 
-<body id="dropzone">
-<div class="options-page">
-
+<body>
 <h1>Publish for Web</h1>
 
-<p>Output will contain no metadata.</p>
+<div class="all-options">
 
-<!--
-In the event of name conflicts, file indices will be appended like so: -1, -2, etc.
+<div class="option-col">
+<fieldset>
+<legend>Notes</legend>
+<ul>
+<li>In the event of name conflicts, file indices will be appended like so: file-1.jpg, file-2.jpg, etc.</li>
+</ul>
+</fieldset>
 
-Template String
-%f old file name, no extension, no whitespace, lowercase
-%F old file name, no extension, no whitespace, original case
-%G old file name, no extension
-%x old file extension
+<fieldset>
+<legend>Template String Format</legend>
+<table>
+<tr><td>%f</td><td>old file name, no whitespace, lowercase</td></tr>
+<tr><td>%F</td><td>old file name, no whitespace, original case</td></tr>
+<tr><td>%G</td><td>old file name, original case</td></tr>
+<tr><td>%x</td><td>old file extension</td></tr>
+<tr><td></td><td></td></tr>
 
-%w width
-%h height
+<tr><td>%w</td><td>width</td></tr>
+<tr><td>%h</td><td>height</td></tr>
+<tr><td></td><td></td></tr>
 
-%d{FORMAT} modtime in the given format
+<tr><td>%d{FORMAT}</td><td>modtime in the given format</td></tr>
+<tr><td></td><td></td></tr>
 
-%r{N} N random digits
-%R{N} N random alphanumeric chars
+<tr><td>%r{N}</td><td>N random digits</td></tr>
+<tr><td>%R{N}</td><td>N random alphanumeric chars</td></tr>
+<tr><td></td><td></td></tr>
 
-%% percent sign
--->
+<tr><td>%%</td><td>percent sign</td></tr>
+</table>
+</fieldset>
 
-<div class="option">
+<fieldset>
+<legend>Date String Format</legend>
+<p>See this table of acceptable formatting tokens: <a href="https://github.com/moment/luxon/blob/master/docs/formatting.md#table-of-tokens">LINK</a></p>
+</fieldset>
+</div>
+
+<div class="option-col">
+
 <fieldset>
   <legend>File Name</legend>
   <div>
@@ -46,38 +63,35 @@ Template String
   </div>
   <div>
     <input type="radio" id="filename-template" name="option-filename" value="filename-template" />
-    <label for="filename-template"><span class="tooltip" data-tip="%f = old file name, no extension, no whitespace, lowercase | %F = old file name, no extension, no whitespace, original case | %G = old file name, no extension | %x = old file extension | %w = new width | %h = new height | %d{FORMAT} = modtime in the given format | %r{N} = N random digits | %R{N} = N random alphanumeric chars | %% = percent sign">Template</span></label> <!-- TODO use javascript to make a mutlti-line tooltip -->
-	<br>
-	<input id="filename-template-text" type="text" value="%f" class="long-input" />
+    <label for="filename-template" style="margin-right: 10px;">Template:</label>
+	<input id="filename-template-text" type="text" value="web-%f-%wx%h" disabled />
   </div>
   <div>
     <input type="radio" id="filename-carry" name="option-filename" value="filename-carry" />
     <label for="filename-carry">No change</label>
   </div>
 </fieldset>
-</div>
 
-<div class="option">
 <fieldset>
-  <legend>Max Image Dimensions (set blank for no limit)</legend>
+  <legend>Max Dimensions</legend>
   <div>
-    <span style="display: inline-block; width: 50px;">Width:</span>
-    <input type="text" id="image-maxwidth" name="option-dimension" maxlength="5" size="6" value="1280" />
+    <label for="option-dimension-width" style="display: inline-block; width: 50px;">Width:</label>
+    <input type="text" id="image-maxwidth" name="option-dimension-width" maxlength="5" size="6" value="1280" />
+	<span style="font-style: italic; margin-left: 10px;">(set blank for no limit)</span>
   </div>
   <div>
-    <span style="display: inline-block; width: 50px;">Height:</span>
-    <input type="text" id="image-maxheight" name="option-dimension" maxlength="5" size="6" value="1024" />
+    <label for="option-dimension-height" style="display: inline-block; width: 50px;">Height:</label>
+    <input type="text" id="image-maxheight" name="option-dimension-height" maxlength="5" size="6" value="1024" />
+	<span style="font-style: italic; margin-left: 10px;">(set blank for no limit)</span>
   </div>
 </fieldset>
-</div>
 
 
-<div class="option">
 <fieldset>
-  <legend>File Format</legend>
+  <legend>Format</legend>
   <div>
     <input type="radio" id="filetype-jpg" name="option-filetype" value="filetype-jpg" checked />
-    <label for="filetype-jpg">JPG</label>&nbsp;&nbsp;&nbsp; | &nbsp;&nbsp; Quality: <input id="image-quality" type="text" size="5" value="0.8" />
+    <label for="filetype-jpg">JPG</label><span class="inline-sep">|</span><span style="margin-right: 10px;">Quality:</span><input id="image-quality" type="text" size="5" value="0.8" />
   </div>
   <div>
     <input type="radio" id="filetype-png" name="option-filetype" value="filetype-png" />
@@ -88,14 +102,12 @@ Template String
     <label for="filetype-carry">No change</label>
   </div>
 </fieldset>
-</div>
 
-<div class="option">
 <fieldset>
-  <legend>File Last Modified Time</legend>
+  <legend>Last Modified Time</legend>
   <div>
     <input type="radio" id="modtime-interpret" name="option-modtime" value="modtime-interpret" />
-    <label for="modtime-interpret"><span class="tooltip" data-tip="An 8-digit chunk followed by a 6-digit chunk will be interpretted as day and time.">Interpret from filename</span></label>
+    <label for="modtime-interpret"><span class="tooltip" data-tip="An 8-digit sequence followed by a 6-digit sequence will be interpretted as day and time. The two sequences can be located anywhere as long as they are in that order.">Interpret from filename</span></label>
   </div>
   <div>
     <input type="radio" id="modtime-now" name="option-modtime" value="modtime-now" />
@@ -103,22 +115,53 @@ Template String
   </div>
   <div>
     <input type="radio" id="modtime-set" name="option-modtime" value="modtime-set" />
-    <label for="modtime-set">Set</label>
-	<br>
-	<input id="modtime-date-picker" type="datetime-local" class="long-input" />
+    <label for="modtime-set" style="margin-right: 10px;">Set:</label>
+	<input id="modtime-date-picker" type="datetime-local" disabled />
   </div>
   <div>
     <input type="radio" id="modtime-carry" name="option-modtime" value="modtime-carry" checked />
     <label for="modtime-carry">No change</label>
   </div>
 </fieldset>
+<fieldset>
+
+<legend>EXIF Metadata</legend>
+  <div>
+    <label for="option-exif-artist" style="display: inline-block; width: 105px;">Artist:</label>
+    <input type="text" id="exif-maxwidth" name="option-exif-artist" />
+  </div>
+  <div>
+    <label for="option-exif-title" style="display: inline-block; width: 105px;">Title:</label>
+    <input type="text" id="exif-maxwidth" name="option-exif-title" />
+  </div>
+  <div>
+    <label for="option-exif-copyright" style="display: inline-block; width: 105px;">Copyright:</label>
+    <input type="text" id="exif-maxwidth" name="option-exif-copyright" />
+  </div>
+  <div>
+    <label for="option-exif-date" style="display: inline-block; width: 105px;">DateTimeOriginal:</label>
+	<select name="option-exif-date" id="option-exif-date">
+	  <option value="exif-date-none">None</option>
+	  <option value="exif-date-carry">Read JPG EXIF</option>
+	  <option value="exif-date-modtime-old">From old modtime</option>
+	  <option value="exif-date-modtime-new">From new modtime</option>
+	  <option value="exif-date-interpret">Interpret from filename</option>
+	</select>
+  </div>
+</fieldset>
+
 </div>
+
+
+<div class="option-col" style="align-items: center">
 
 <div>
 <input type="file" id="input-files" multiple accept="image/*">
 <div class="button" onclick="document.getElementById('input-files').click()">Select Files</div>
 <input type="file" id="input-dirs" webkitdirectory multiple accept="image/*">
 <div class="button" onclick="document.getElementById('input-dirs').click()">Select Folders</div>
+</div>
+<p style="font-size: 14px">Or drag files anywhere</p>
 </div>
 
 </div>
@@ -294,7 +337,7 @@ function getNewFormat(file) {
 	} else if (val === "filetype-png") {
 		return "image/png";
 	} else {
-		const [dir, basename, ext] = splitFilename(file.name);
+		const [dir, basename, ext] = splitFilename(file.name); //drag-and-dropped files don't have a type for some reason, need to look at file ext
 		let mime = MIME[ext];
 		if (mime === undefined) {
 			mime = "image/jpeg";
@@ -316,7 +359,7 @@ function getNewModtime(file) {
 	let date;
 	if (val === "modtime-interpret") {
 		const [dir, basename, ext] = splitFilename(file.name);
-		const found = basename.replaceAll(/[^\d]/g, " ").match(/ *(\d{8}) *(\d{6}) */);
+		const found = basename.replaceAll(/[^\d]/g, " ").trim().match(/^(\d{8}) *(\d{6})$/);
 		if (found !== null) {
 			const dayNumber = found[1], timeNumber = found[2];
 			const year   = parseInt(dayNumber.substring(0, 4));
@@ -467,13 +510,11 @@ const readRecurse = (dir, onComplete, onError) => {
 	reader.readEntries(onRead, onError);
 }
 
-const dropzone = document.getElementById('dropzone');
-
-dropzone.addEventListener('dragover', (e) => {
+document.addEventListener('dragover', (e) => {
     e.preventDefault();
 });
 
-dropzone.addEventListener('drop', (ev) => {
+document.addEventListener('drop', (ev) => {
 	ev.preventDefault();
 	const tf = ev.dataTransfer;
 	if (!tf.files.length) {
@@ -545,6 +586,15 @@ function onFiles(f) {
 	}
 }
 
+document.getElementById("modtime-set").onchange = (event) => {
+	document.getElementById("modtime-date-picker").disabled = false; // TODO onchange does not fire when radio button is unchecked
+}
+
+document.getElementById("filename-template").onchange = (event) => {
+	document.getElementById("filename-template-text").disabled = false; // TODO onchange does not fire when radio button is unchecked
+}
+
+// TODO check if above radio buttons start off checked
 
 </script>
 </body>
