@@ -36,7 +36,7 @@
 </fieldset>
 
 <fieldset>
-<legend>Date Format</legend>
+<legend>Date Format Tokens</legend>
 <table>
 <tr><td>ss</td><td>second, padded to 2</td></tr>
 <tr><td>mm</td><td>minute, padded to 2</td></tr>
@@ -66,30 +66,30 @@
 <fieldset>
   <legend><span class="tooltip" data-tip="In the event of name conflicts, file indices will be appended like so: file.jpg, file-1.jpg, file-2.jpg, etc.">File Name</span></legend>
   <div>
-    <input type="radio" id="filename-whitespace" name="option-filename" value="filename-whitespace" checked required />
-    <label for="filename-whitespace">Remove whitespace & convert to lowercase</label>
+	<input type="radio" id="filename-whitespace" name="option-filename" value="filename-whitespace" default checked required />
+	<label for="filename-whitespace">Remove whitespace & convert to lowercase</label>
   </div>
   <div>
-    <input type="radio" id="filename-template" name="option-filename" value="filename-template" />
-    <label for="filename-template">Template:</label>
-	<input id="filename-template-text" type="text" value="web-%f-%wx%h" default="web-%f-%wx%h" />
+	<input type="radio" id="filename-template" name="option-filename" value="filename-template" />
+	<label for="filename-template">Template:</label>
+	<input id="filename-template-text" type="text" value="web-%f-%wx%h" default="web-%f-%wx%h" fill-blank />
   </div>
   <div>
-    <input type="radio" id="filename-carry" name="option-filename" value="filename-carry" />
-    <label for="filename-carry">No change</label>
+	<input type="radio" id="filename-carry" name="option-filename" value="filename-carry" />
+	<label for="filename-carry">No change</label>
   </div>
 </fieldset>
 
 <fieldset>
   <legend>Max Dimensions</legend>
   <div>
-    <label for="option-dimension-width" style="display: inline-block; width: 35px;">Width:</label>
-    <input type="text" id="image-maxwidth" name="option-dimension-width" maxlength="5" value="1280" />
+	<label for="option-dimension-width" style="display: inline-block; width: 35px;">Width:</label>
+	<input type="text" id="image-maxwidth" name="option-dimension-width" maxlength="5" value="1280" default="1280" />
 	<span class="note">(set blank for no limit)</span>
   </div>
   <div>
-    <label for="option-dimension-height" style="display: inline-block; width: 35px;">Height:</label>
-    <input type="text" id="image-maxheight" name="option-dimension-height" maxlength="5" value="1024" />
+	<label for="option-dimension-height" style="display: inline-block; width: 35px;">Height:</label>
+	<input type="text" id="image-maxheight" name="option-dimension-height" maxlength="5" value="1024" default="1024" />
 	<span class="note">(set blank for no limit)</span>
   </div>
 </fieldset>
@@ -98,59 +98,59 @@
 <fieldset>
   <legend>Format</legend>
   <div>
-    <input type="radio" id="filetype-jpg" name="option-filetype" value="filetype-jpg" checked required />
-    <label for="filetype-jpg">JPG</label><span style="margin-right: 10px">|</span><span style="margin-right: 10px">Quality:</span><input id="jpg-quality-text" type="text" maxlength="4" value="0.8" default="0.9" style="width:40px" /><span class="note">(a decimal between 0.0 and 1.0)</span>
+	<input type="radio" id="filetype-jpg" name="option-filetype" value="filetype-jpg" default checked required />
+	<label for="filetype-jpg">JPG</label><span style="margin-right: 10px">|</span><span style="margin-right: 10px">Quality:</span><input id="jpg-quality-text" type="text" maxlength="4" value="0.9" fill-blank default="0.9" style="width:40px" /><span class="note">(a decimal between 0.0 and 1.0)</span>
   </div>
   <div>
-    <input type="radio" id="filetype-png" name="option-filetype" value="filetype-png" />
-    <label for="filetype-png">PNG</label>
+	<input type="radio" id="filetype-png" name="option-filetype" value="filetype-png" />
+	<label for="filetype-png">PNG</label>
   </div>
   <div>
-    <input type="radio" id="filetype-carry" name="option-filetype" value="filetype-carry" />
-    <label for="filetype-carry">No change</label>
+	<input type="radio" id="filetype-carry" name="option-filetype" value="filetype-carry" />
+	<label for="filetype-carry">No change</label>
   </div>
 </fieldset>
 
 <fieldset>
   <legend>Last Modified Time</legend>
   <div>
-    <input type="radio" id="modtime-interpret" name="option-modtime" value="modtime-interpret" required />
-    <label for="modtime-interpret"><span class="tooltip" data-tip="An 8-digit sequence followed by a 6-digit sequence will be interpretted as day and time. The two sequences can be located anywhere as long as they are in that order.">Interpret from filename</span></label>
+	<input type="radio" id="modtime-interpret" name="option-modtime" value="modtime-interpret" required />
+	<label for="modtime-interpret"><span class="tooltip" data-tip="An 8-digit sequence followed by a 6-digit sequence will be interpretted as date and time. The two sequences can be located anywhere as long as they are in that order.">Interpret from filename</span></label>
   </div>
   <div>
-    <input type="radio" id="modtime-now" name="option-modtime" value="modtime-now" />
-    <label for="modtime-now">Now</label>
+	<input type="radio" id="modtime-now" name="option-modtime" value="modtime-now" />
+	<label for="modtime-now">Now</label>
   </div>
   <div>
-    <input type="radio" id="modtime-set" name="option-modtime" value="modtime-set" />
-    <label for="modtime-set">Set:</label>
+	<input type="radio" id="modtime-set" name="option-modtime" value="modtime-set" />
+	<label for="modtime-set">Set:</label>
 	<input id="modtime-date-picker" type="datetime-local" step=1 />
   </div>
   <div>
-    <input type="radio" id="modtime-carry" name="option-modtime" value="modtime-carry" checked />
-    <label for="modtime-carry">No change</label>
+	<input type="radio" id="modtime-carry" name="option-modtime" value="modtime-carry" default checked />
+	<label for="modtime-carry">No change</label>
   </div>
 </fieldset>
 
 <fieldset>
-<legend><span class="tooltip" data-tip="Only JPGs can contain EXIF metadata at the moment.">EXIF Metadata</span></legend>
+<legend><span class="tooltip" data-tip="Metadata is currently supported for JPGs and PNGs only.">Metadata</span></legend>
   <div>
-    <label for="option-meta-artist" style="display: inline-block; width: 90px;">Artist:</label>
-    <input type="text" id="meta-artist" name="option-meta-artist" maxlength="280" />
+	<label for="option-meta-artist" style="display: inline-block; width: 90px;">Artist:</label>
+	<input type="text" id="meta-artist" name="option-meta-artist" maxlength="280" default="" />
 	<span class="note">(blank ignored)</span>
   </div>
   <div>
-    <label for="option-meta-title" style="display: inline-block; width: 90px;">Title:</label>
-    <input type="text" id="meta-title" name="option-meta-title" maxlength="280" />
+	<label for="option-meta-title" style="display: inline-block; width: 90px;">Title:</label>
+	<input type="text" id="meta-title" name="option-meta-title" maxlength="280" default="" />
 	<span class="note">(blank ignored)</span>
   </div>
   <div>
-    <label for="option-meta-copyright" style="display: inline-block; width: 90px;">Copyright:</label>
-    <input type="text" id="meta-copyright" name="option-meta-copyright" maxlength="280" />
+	<label for="option-meta-copyright" style="display: inline-block; width: 90px;">Copyright:</label>
+	<input type="text" id="meta-copyright" name="option-meta-copyright" maxlength="280" default="" />
 	<span class="note">(blank ignored)</span>
   </div>
   <div>
-    <label for="option-meta-date" style="display: inline-block; width: 90px;">DateTimeOriginal:</label>
+	<label for="option-meta-date" style="display: inline-block; width: 90px;">DateTimeOriginal:</label>
 	<select name="option-meta-date" id="meta-date">
 	  <option value="meta-date-none">None</option>
 	  <option value="meta-date-exif">Read JPG EXIF</option>
@@ -208,7 +208,7 @@ const MIME = {
 	".jpg" : "image/jpeg",
 	".jpeg": "image/jpeg",
 	".png" : "image/png",
-	".webp": "image/webp", // TODO not supported by canvas.toBlob in Safari
+	".webp": "image/webp",
 	".zip" : "application/zip",
 };
 
@@ -279,7 +279,7 @@ alert([0xae, 0x42, 0x60, 0x82]); // IEND CRC
 
 function interpretDateFromFilename(file) {
 	const [dir, basename, ext] = splitFilename(file.name);
-	const found = basename.replaceAll(/[^\d]/g, " ").trim().match(/^(\d{8}) *(\d{6})$/);
+	const found = basename.replaceAll(/[^\d]/g, " ").trim().match(/^(\d{8}) *(\d{6})$/); // TODO some filenames include a final triplet (e.g., _123) for milliseconds
 	if (found !== null) {
 		const dayNumber = found[1], timeNumber = found[2];
 		const year   = parseInt(dayNumber.substring(0, 4));
@@ -294,11 +294,11 @@ function interpretDateFromFilename(file) {
 	return null;
 }
 
-// TODO The two problems below are good reasons to only download zip files...
+// TODO? Due to the following problems, only download zips
 function saveAs(content, filename, modtime=Date.now()) {
 	const [dir, basename, ext] = splitFilename(filename);
 	const mime = MIME[ext];
-	console.log("downloading " + mime + " (" + modtime + ")");
+	console.log("downloading: " + mime);
 	const file = new File([content], filename, { type: mime, lastModified: modtime }); // lastModified currently has no actual effect
 	const url = URL.createObjectURL(file);
 	const link = document.createElement("a");
@@ -327,8 +327,8 @@ function getInputOrDefault(id) {
 function getDatePickerDateString(localDate=Date.now()) {
 	if (typeof localDate === "number")
 		localDate = new Date(localDate);
-	const offsetMs = localDate.getTimezoneOffset() * 60 * 1000;
-	localDate.setTime(localDate.getTime() - offsetMs);
+	const offsetMs = -localDate.getTimezoneOffset() * 60 * 1000;
+	localDate.setTime(localDate.getTime() + offsetMs);
 	localDate = localDate.toISOString().slice(0, 19);
 	return localDate;
 }
@@ -336,7 +336,7 @@ function getDatePickerDateString(localDate=Date.now()) {
 function getXMPDateString(localDate=Date.now(), timeZoneOffset=null) {
 	if (typeof localDate === "number")
 		localDate = new Date(localDate);
-	if (timeZoneOffset === null)
+	if (timeZoneOffset == null || timeZoneOffset == "")
 		timeZoneOffset = -localDate.getTimezoneOffset(); //minutes
 	let date = getDatePickerDateString(localDate);
 	const H = ("" + Math.floor(Math.abs(timeZoneOffset)/60)).padStart(2, "0");
@@ -492,6 +492,9 @@ function getNewFormat(file) {
 		if (mime === undefined) {
 			mime = "image/jpeg";
 		}
+		if (mime === "image/webp" && /^((?!chrome|android).)*safari/i.test(navigator.userAgent)) { // safari does not support webp
+			mime = "image/jpeg";
+		}
 		return mime;
 	}
 }
@@ -594,16 +597,18 @@ async function getNewMetadata(file) {
 		}
 	} else if (dateTimeOriginalSelection == "meta-date-modtime-old") {
 		dateTimeOriginal   = new Date(file.lastModified);
-		timeZoneOffset     = "" + dateTimeOriginal.getTimezoneOffset()*60; // zero is a valid value
-		subSecTimeOriginal = "" + dateTimeOriginal.getMilliseconds();
+		timeZoneOffset     = "" + -dateTimeOriginal.getTimezoneOffset(); // zero is a valid value
+		subSecTimeOriginal = "" +  dateTimeOriginal.getMilliseconds();
 	} else if (dateTimeOriginalSelection == "meta-date-modtime-new") {
 		dateTimeOriginal   = new Date(getNewModtime(file));
-		timeZoneOffset     = "" + dateTimeOriginal.getTimezoneOffset()*60;
-		subSecTimeOriginal = "" + dateTimeOriginal.getMilliseconds();
+		timeZoneOffset     = "" + -dateTimeOriginal.getTimezoneOffset();
+		subSecTimeOriginal = "" +  dateTimeOriginal.getMilliseconds();
 	} else if (dateTimeOriginalSelection == "meta-date-interpret") {
 		dateTimeOriginal   = interpretDateFromFilename(file);
-		timeZoneOffset     = "" + dateTimeOriginal.getTimezoneOffset()*60;
-		subSecTimeOriginal = "" + dateTimeOriginal.getMilliseconds();
+		if (dateTimeOriginal) {
+			timeZoneOffset     = "" + -dateTimeOriginal.getTimezoneOffset();
+			subSecTimeOriginal = "" +  dateTimeOriginal.getMilliseconds();
+		}
 	}
 
 	return {
@@ -814,6 +819,8 @@ async function insertMetadata(blob, metadata) {
 		return blob;
 	}
 
+	const xmp = createXMP(metadata);
+
 	const dataToCombine = [];
 	if (blob.type == "image/jpeg") {
 		// insert after JFIF/APP0 (0xFFE0) and just before the quantization table (0xFFDB)
@@ -832,14 +839,28 @@ async function insertMetadata(blob, metadata) {
 		const data = await blob.slice(i).bytes();
 		dataToCombine.push(data);                                 // Image data
 	} else {
+		let crc;
 		const ihdr = await blob.slice(0, 33).bytes();
 		dataToCombine.push(ihdr);                                 // PNG header + IHDR
+		// EXIF
 		dataToCombine.push(numberToBytes(exif.length, 4));        // Chunk length
 		dataToCombine.push([0x65, 0x58, 0x49, 0x66]);             // EXIF chunk type field
 		dataToCombine.push(exif);                                 // EXIF metadata
-		let crc = pngCRC([0x65, 0x58, 0x49, 0x66]);
+		    crc = pngCRC([0x65, 0x58, 0x49, 0x66]);
 			crc = pngCRC(exif, crc ^ 0xffffffff);
 		dataToCombine.push(numberToBytes(crc, 4));                // CRC
+		// XMP
+		dataToCombine.push(numberToBytes(xmp.length+22, 4));      // Chunk length
+		dataToCombine.push([0x69, 0x54, 0x58, 0x74]);             // XMP chunk type field
+		dataToCombine.push([0x58, 0x4D, 0x4C, 0x3A, 0x63, 0x6F, 0x6D, 0x2E, 0x61, 0x64, 0x6F, 0x62, 0x65, 0x2E, 0x78, 0x6D, 0x70]); // "XML:com.adobe.xmp"
+		dataToCombine.push([0x00, 0x00, 0x00, 0x00, 0x00]);       // Compression options
+		dataToCombine.push(xmp);                                  // XMP metadata
+		    crc = pngCRC([0x69, 0x54, 0x58, 0x74]);
+			crc = pngCRC([0x58, 0x4D, 0x4C, 0x3A, 0x63, 0x6F, 0x6D, 0x2E, 0x61, 0x64, 0x6F, 0x62, 0x65, 0x2E, 0x78, 0x6D, 0x70], crc ^ 0xffffffff);
+			crc = pngCRC([0x00, 0x00, 0x00, 0x00, 0x00], crc ^ 0xffffffff);
+			crc = pngCRC(xmp, crc ^ 0xffffffff);
+		dataToCombine.push(numberToBytes(crc, 4));                // CRC
+
 		const data = await blob.slice(33).bytes();                // Image data
 		dataToCombine.push(data);
 	}
@@ -940,10 +961,11 @@ function processMultiple(files) {
 				}
 				// set modtime, JSZip assumes UTC
 				const newModtime = getNewModtime(f);
-				const newModtimeUTC = new Date(newModtime.toUTCString().substring(0, 25));
+				newModtime.setTime(newModtime.getTime() - newModtime.getTimezoneOffset()*60*1000);
+				//const newModtimeUTC = new Date(newModtime.toUTCString().substring(0, 25));
 
 				console.log("adding file: " + newName);
-				zip.file(newName, metaBlob, {date: newModtimeUTC});
+				zip.file(newName, metaBlob, {date: newModtime});
 			});
 		})
 	)
@@ -1039,7 +1061,7 @@ document.getElementById("input-files").oninput = fileInputHandler;
 document.getElementById("input-dirs").oninput = fileInputHandler;
 
 document.addEventListener("dragover", (event) => {
-    event.preventDefault();
+	event.preventDefault();
 });
 
 document.addEventListener("drop", (event) => {
@@ -1084,56 +1106,35 @@ document.addEventListener("drop", (event) => {
 	}
 }, false);
 
-/*
-document.addEventListener("drop", async (event) => {
-	event.preventDefault();
-	const items = event.dataTransfer.items;
-	const allEntries = [];
 
-	// can scan subdriectories with FileSystemDirectoryEntry, but not with File
-	const scanFiles = async (entry, allEntries) => {
-		if (entry.isFile) {
-			allEntries.push(entry);
-		} else {
-			const reader = entry.createReader();
-			const results = await new Promise((resolve, reject) => {
-				reader.readEntries(resolve, reject);
-			});
 
-			for (const ent of results) {
-				await scanFiles(ent, allEntries);
+
+
+
+
+
+
+
+
+function resetInputs() {
+	document.querySelectorAll("input").forEach(tag => {
+		if (tag.hasAttribute("default")) {
+			if (tag.type == "radio") {
+				tag.checked = true;
+			} else {
+				tag.value = tag.getAttribute("default");
 			}
 		}
+	});
+	document.getElementById("jpg-quality-text").disabled = false;
+	document.getElementById("meta-date").value = "meta-date-none";
+}
+
+document.addEventListener("keydown", (event) => {
+	if (event.key === "Escape") {
+		resetInputs();
 	}
-
-	for (let i = 0; i < items.length; i++) {
-		let entry = items[i].webkitGetAsEntry();
-		if (entry) {
-			await scanFiles(entry, allEntries);
-		}
-	}
-
-	// convert FileSystemFileEntry's into File's
-	// file type is lost for files inside dropped folders
-	const files = await Promise.all(allEntries.map(entry =>
-		new Promise((resolve, reject) => {
-			entry.file(resolve, reject);
-		})
-	));
-
-	console.log(files);
-}, false);
-*/
-
-
-
-
-
-
-
-
-
-
+});
 
 document.querySelectorAll("input[name='option-filename']").forEach(tag => {
 	tag.addEventListener("input", (event) => {
@@ -1154,11 +1155,11 @@ document.querySelectorAll("input[name='option-modtime']").forEach(tag => {
 });
 
 document.getElementById("filename-template-text").addEventListener("input", (event) => {
-	event.target.value = event.target.value.replace(/[^ a-zA-Z0-9!@#$%^&)(_+=.,-]/g, ""); // filename-safe chars only
+	event.target.value = event.target.value.replace(/[\x00-\x1F\x7F-\x9F\\\/:*?"<>|]/g, ""); // filename-safe chars only (exclude control characters and Windows-forbidden chars)
 });
 
 document.getElementById("meta-artist").addEventListener("input", (event) => {
-	event.target.value = event.target.value.replace(/[^ -~]/g, ""); // ascii only
+	event.target.value = event.target.value.replace(/[^ -~]/g, ""); // printable ascii only
 });
 
 document.getElementById("meta-title").addEventListener("input", (event) => {
@@ -1181,8 +1182,16 @@ document.getElementById("image-maxheight").addEventListener("input", (event) => 
 	event.target.value = event.target.value.replace(/[^0-9]/g, "");
 });
 
+document.getElementById("image-maxwidth").addEventListener("focus", (event) => {
+	event.target.value = "";
+});
+
+document.getElementById("image-maxheight").addEventListener("focus", (event) => {
+	event.target.value = "";
+});
+
 document.querySelectorAll("input").forEach(tag => {
-	if (tag.getAttribute("default")) {
+	if (tag.hasAttribute("fill-blank")) {
 		tag.addEventListener("blur", (event) => {
 			if (tag.value === "") {
 				tag.value = tag.getAttribute("default");
@@ -1211,6 +1220,53 @@ window.addEventListener("DOMContentLoaded", () => {
 	document.getElementById("js-off").classList.toggle("hidden");
 	document.getElementById("js-on").classList.toggle("hidden");
 });
+
+
+
+
+
+
+
+
+
+
+
+function createXMP(metadata) {
+	const encoder = new TextEncoder();
+	const xmp = `<?xpacket begin="﻿" id="W5M0MpCehiHzreSzNTczkc9d"?>
+<x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="Adobe XMP Core 5.6-c067 79.157747, 2015/03/30-23:40:42        ">
+   <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+	  <rdf:Description rdf:about=""
+			xmlns:xmp="http://ns.adobe.com/xap/1.0/"
+			xmlns:dc="http://purl.org/dc/elements/1.1/"
+			xmlns:xmpRights="http://ns.adobe.com/xap/1.0/rights/">
+		 <xmp:CreateDate>${getXMPDateString(metadata.dateTimeOriginal, metadata.timeZoneOffset)}</xmp:CreateDate>
+		 <dc:title>
+			<rdf:Alt>
+			   <rdf:li xml:lang="x-default">${metadata.title}</rdf:li>
+			</rdf:Alt>
+		 </dc:title>
+		 <dc:creator>
+			<rdf:Seq>
+			   <rdf:li>${metadata.artist}</rdf:li>
+			</rdf:Seq>
+		 </dc:creator>
+		 <dc:description>
+			<rdf:Alt>
+			   <rdf:li xml:lang="x-default">${metadata.title}</rdf:li>
+			</rdf:Alt>
+		 </dc:description>
+		 <dc:rights>
+			<rdf:Alt>
+			   <rdf:li xml:lang="x-default">${metadata.copyright}</rdf:li>
+			</rdf:Alt>
+		 </dc:rights>
+		 <xmpRights:Marked>${metadata.copyright ? "True" : "False"}</xmpRights:Marked>
+	  </rdf:Description>
+   </rdf:RDF>
+</x:xmpmeta>`
+	return encoder.encode(xmp);
+}
 
 </script>
 </body>
