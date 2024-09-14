@@ -405,65 +405,58 @@ function resizeImage(file, metadata) {
 			});
 		}
 
-		const reader = new FileReader();
+		const url = URL.createObjectURL(file);
+		const img = new Image();
 
-		reader.onload = (event) => {
-			const img = new Image();
+		img.onload = () => {
+			URL.revokeObjectURL(url);
+			[newWidth, newHeight] = getNewDimensions(img);
+			const canvas = document.createElement("canvas");
+			if (img.width != newWidth || img.height != newHeight) {
+				const fcanvas = new fabric.Canvas(canvas, {
+					imageSmoothingEnabled: false,
+					enableRetinaScaling: false,
+				});
+				fcanvas.setWidth(newWidth);
+				fcanvas.setHeight(newHeight);
+				const lanczosFilter = new fabric.Image.filters.Resize({
+					scaleX: 1,
+					scaleY: 1,
+					resizeType: "lanczos",
+					lanczosLobes: 3,
+				});
+				const fimg = new fabric.Image(img).scale(newWidth / img.width);
+				const r = fcanvas.getRetinaScaling();
+				lanczosFilter.scaleX = lanczosFilter.scaleY = fimg.scaleX * r;
+				fimg.filters = [lanczosFilter];
+				fimg.applyFilters();
+				fcanvas.add(fimg);
+				fcanvas.renderAll();
+			} else {
+				canvas.width = img.width;
+				canvas.height = img.height;
+				const ctx = canvas.getContext("2d");
+				ctx.drawImage(img, 0, 0);
+			}
+			const newFormat  = getNewFormat(file, metadata);
+			const newQuality = getNewQuality(file) ** (1.0/6); // take root b/c lanczos quality seems to increase exponentially
 
-			img.onload = () => {
-				[newWidth, newHeight] = getNewDimensions(img);
-				const canvas = document.createElement("canvas");
-				if (img.width != newWidth || img.height != newHeight) {
-					const fcanvas = new fabric.Canvas(canvas, {
-						imageSmoothingEnabled: false,
-						enableRetinaScaling: false,
-					});
-					fcanvas.setWidth(newWidth);
-					fcanvas.setHeight(newHeight);
-					const lanczosFilter = new fabric.Image.filters.Resize({
-						scaleX: 1,
-						scaleY: 1,
-						resizeType: "lanczos",
-						lanczosLobes: 3,
-					});
-					const fimg = new fabric.Image(img).scale(newWidth / img.width);
-					const r = fcanvas.getRetinaScaling();
-					lanczosFilter.scaleX = lanczosFilter.scaleY = fimg.scaleX * r;
-					fimg.filters = [lanczosFilter];
-					fimg.applyFilters();
-					fcanvas.add(fimg);
-					fcanvas.renderAll();
-				} else {
-					canvas.width = img.width;
-					canvas.height = img.height;
-					const ctx = canvas.getContext("2d");
-					ctx.drawImage(img, 0, 0);
-				}
-				const newFormat  = getNewFormat(file, metadata);
-				const newQuality = getNewQuality(file) ** (1.0/6); // take root b/c lanczos quality seems to increase exponentially
+			console.log("converting image: " + newFormat + " " + newQuality);
+			canvas.toBlob(blob => {
+				resolve({
+					blob   : blob,
+					width  : newWidth,
+					height : newHeight,
+				});
+			}, newFormat, newQuality);
+		}
 
-				console.log("converting image: " + newFormat + " " + newQuality);
-				canvas.toBlob(blob => {
-					resolve({
-						blob   : blob,
-						width  : newWidth,
-						height : newHeight,
-					});
-				}, newFormat, newQuality);
-			};
-
-			img.onerror = (error) => {
-				reject(error);
-			};
-
-			img.src = event.target.result;
-		};
-
-		reader.onerror = (error) => {
+		img.onerror = (error) => {
+			URL.revokeObjectURL(url);
 			reject(error);
-		};
+		}
 
-		reader.readAsDataURL(file);
+		img.src = url;
 	});
 }
 
